@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IntegrityAI — Smart Question Engine</title>
+  <title>IntegrityAI — Interview Authenticity Detector</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -12,25 +12,35 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d0f14; color: #e2e8f0; min-height: 100vh; }
     .shell { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ── Topbar ── */
     .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 32px; background: #12151d; border-bottom: 1px solid #1e2330; }
     .logo { display: flex; align-items: center; gap: 10px; }
     .logo-icon { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #6366f1, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 18px; }
     .logo-text { font-size: 18px; font-weight: 700; }
     .logo-text span { color: #a855f7; }
     .badge { font-size: 11px; font-weight: 600; letter-spacing: .5px; background: #1e2330; border: 1px solid #2d3446; padding: 3px 10px; border-radius: 20px; color: #94a3b8; }
+
+    /* ── Layout ── */
     .main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 40px 16px 60px; }
-    .steps { display: flex; align-items: center; margin-bottom: 40px; }
+
+    /* ── Steps ── */
+    .steps { display: flex; align-items: center; margin-bottom: 40px; flex-wrap: wrap; gap: 4px; justify-content: center; }
     .step { display: flex; align-items: center; gap: 8px; }
     .step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #2d3446; color: #475569; transition: all .3s; }
     .step-num.active { border-color: #6366f1; color: #6366f1; background: rgba(99,102,241,.12); }
     .step-num.done { border-color: #10b981; color: #10b981; background: rgba(16,185,129,.12); }
     .step-label { font-size: 13px; color: #475569; font-weight: 500; }
     .step-label.active { color: #e2e8f0; }
-    .step-divider { width: 40px; height: 1px; background: #1e2330; margin: 0 8px; }
+    .step-divider { width: 32px; height: 1px; background: #1e2330; margin: 0 4px; }
+
+    /* ── Cards ── */
     .card { width: 100%; max-width: 620px; background: #12151d; border: 1px solid #1e2330; border-radius: 16px; padding: 36px; margin-bottom: 20px; }
     .card-wide { max-width: 920px; }
     .card-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
     .card-sub { color: #64748b; font-size: 14px; margin-bottom: 28px; line-height: 1.6; }
+
+    /* ── Dropzone ── */
     .dropzone { border: 2px dashed #1e2330; border-radius: 12px; padding: 48px 32px; text-align: center; cursor: pointer; transition: all .2s; }
     .dropzone:hover, .dropzone.dragover { border-color: #6366f1; background: rgba(99,102,241,.04); }
     .dropzone.has-file { border-color: #10b981; background: rgba(16,185,129,.04); }
@@ -39,6 +49,8 @@
     .dz-text strong { color: #a855f7; }
     .dz-file-name { font-size: 15px; font-weight: 600; color: #10b981; margin-top: 8px; }
     .dz-hint { font-size: 12px; color: #475569; margin-top: 6px; }
+
+    /* ── Buttons ── */
     .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .2s; }
     .btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; box-shadow: 0 0 20px rgba(99,102,241,.3); width: 100%; justify-content: center; margin-top: 24px; font-size: 15px; padding: 14px; }
     .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 28px rgba(99,102,241,.45); }
@@ -46,6 +58,9 @@
     .btn-ghost { background: #1e2330; color: #94a3b8; border: 1px solid #2d3446; }
     .btn-ghost:hover { background: #252b3b; color: #e2e8f0; }
     .btn-sm { padding: 7px 14px; font-size: 12px; }
+    .btn-inline { width: auto; margin-top: 0; }
+
+    /* ── Loading ── */
     .loading-card { width: 100%; max-width: 480px; text-align: center; background: #12151d; border: 1px solid #1e2330; border-radius: 16px; padding: 52px 36px; }
     .spinner { width: 56px; height: 56px; border-radius: 50%; border: 3px solid #1e2330; border-top-color: #6366f1; animation: spin 1s linear infinite; margin: 0 auto 28px; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -58,6 +73,8 @@
     .ls-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
     .ls-dot.pulse { animation: pulse .8s ease-in-out infinite alternate; }
     @keyframes pulse { from { opacity: .3; } to { opacity: 1; } }
+
+    /* ── Question bank ── */
     .qb-header { margin-bottom: 28px; }
     .qb-title { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
     .qb-meta { font-size: 13px; color: #64748b; }
@@ -108,6 +125,53 @@
     .export-info { font-size: 13px; color: #475569; }
     .export-actions { display: flex; gap: 10px; }
     .error-box { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.25); border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #fca5a5; line-height: 1.6; }
+
+    /* ── Interview Screen ── */
+    .interview-wrap { width: 100%; max-width: 860px; }
+    .iv-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+    .iv-counter { font-size: 13px; color: #64748b; white-space: nowrap; }
+    .iv-counter strong { color: #e2e8f0; }
+    .progress-track { flex: 1; height: 4px; background: #1e2330; border-radius: 2px; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #a855f7); border-radius: 2px; transition: width .4s ease; }
+    .tab-alert { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; padding: 10px 16px; font-size: 13px; color: #fca5a5; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .iv-q-card { background: #12151d; border: 1px solid #1e2330; border-radius: 16px; padding: 32px; margin-bottom: 20px; }
+    .iv-q-label { font-size: 11px; font-weight: 700; letter-spacing: .8px; color: #6366f1; margin-bottom: 12px; }
+    .iv-q-text { font-size: 20px; font-weight: 600; line-height: 1.55; color: #e2e8f0; margin-bottom: 16px; }
+    .iv-q-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .transcript-wrap { background: #12151d; border: 1px solid #1e2330; border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    .transcript-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .transcript-title { font-size: 11px; font-weight: 700; letter-spacing: .8px; color: #94a3b8; }
+    .rec-badge { font-size: 11px; color: #ef4444; display: flex; align-items: center; gap: 5px; font-weight: 600; }
+    .rec-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: blink .9s ease-in-out infinite alternate; }
+    @keyframes blink { from { opacity: .3; } to { opacity: 1; } }
+    .transcript-body { min-height: 90px; max-height: 220px; overflow-y: auto; font-size: 15px; line-height: 1.7; color: #e2e8f0; }
+    .transcript-interim { color: #64748b; font-style: italic; }
+    .transcript-empty { color: #2d3446; font-style: italic; font-size: 14px; }
+    .iv-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .mic-wrap { display: flex; align-items: center; gap: 14px; }
+    .mic-btn { width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; font-size: 26px; display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0; }
+    .mic-off { background: #1e2330; color: #64748b; }
+    .mic-off:hover { background: #252b3b; color: #e2e8f0; }
+    .mic-on { background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; animation: mic-pulse 1.4s ease-in-out infinite; }
+    @keyframes mic-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.5); } 60% { box-shadow: 0 0 0 16px rgba(239,68,68,0); } }
+    .mic-label { font-size: 13px; font-weight: 600; }
+    .mic-hint { font-size: 11px; color: #475569; margin-top: 2px; }
+    .iv-right { display: flex; align-items: center; gap: 10px; }
+    .saved-tag { font-size: 12px; color: #10b981; font-weight: 600; }
+
+    /* ── Interview Summary (Day 8 placeholder) ── */
+    .summary-wrap { width: 100%; max-width: 860px; }
+    .summary-hdr-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .summary-heading { font-size: 24px; font-weight: 700; }
+    .coming-soon-box { background: rgba(99,102,241,.06); border: 1px solid rgba(99,102,241,.2); border-radius: 10px; padding: 18px 22px; margin-bottom: 24px; font-size: 14px; color: #94a3b8; line-height: 1.6; }
+    .qa-item { background: #12151d; border: 1px solid #1e2330; border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+    .qa-q { font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 10px; line-height: 1.5; }
+    .qa-a { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 12px; border-left: 2px solid #1e2330; padding-left: 12px; font-style: italic; }
+    .qa-a.skipped { color: #475569; }
+    .qa-meta-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .qa-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #0d0f14; border: 1px solid #1e2330; color: #475569; }
+    .qa-tag.warn { color: #fbbf24; border-color: rgba(234,179,8,.3); background: rgba(234,179,8,.06); }
+
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0d0f14; }
     ::-webkit-scrollbar-thumb { background: #1e2330; border-radius: 3px; }
@@ -116,11 +180,12 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useRef, useCallback } = React;
+const { useState, useRef, useCallback, useEffect } = React;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// ── PDF Parser ───────────────────────────────────────────────────────────────
 async function parsePDF(file) {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -133,7 +198,7 @@ async function parsePDF(file) {
   return text.trim();
 }
 
-// ── Question generation — calls Netlify serverless function (Groq / Llama 3) ──
+// ── Question Generation — Vercel serverless function (Groq / Llama 3) ────────
 async function generateQuestions(resumeText) {
   const res = await fetch('/api/generate-questions', {
     method: 'POST',
@@ -146,8 +211,8 @@ async function generateQuestions(resumeText) {
   }
   return res.json();
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function downloadJSON(obj, name) {
   const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -155,20 +220,43 @@ function downloadJSON(obj, name) {
   URL.revokeObjectURL(url);
 }
 
-function Topbar() {
+const TRAP_LABELS = {
+  fake_tool: '🎣 Fake Tool',
+  contradiction: '🔀 Contradiction',
+  simplicity: '🧠 Simplicity Test',
+  specificity: '🔍 Specificity Drill',
+  achievement_depth: '📊 Achievement Depth',
+};
+
+// ── Topbar ────────────────────────────────────────────────────────────────────
+function Topbar({ step }) {
+  const badges = {
+    1: 'MODULE 1 — UPLOAD RESUME',
+    2: 'MODULE 1 — GENERATING QUESTIONS',
+    3: 'MODULE 1 — QUESTION BANK',
+    4: 'MODULE 2 — LIVE INTERVIEW',
+    5: 'MODULE 2 — INTERVIEW COMPLETE',
+  };
   return (
     <div className="topbar">
       <div className="logo">
         <div className="logo-icon">🛡</div>
         <div className="logo-text">Integrity<span>AI</span></div>
       </div>
-      <div className="badge">MODULE 1 — SMART QUESTION ENGINE</div>
+      <div className="badge">{badges[step] || 'INTEGRITY AI'}</div>
     </div>
   );
 }
 
+// ── Steps ─────────────────────────────────────────────────────────────────────
 function Steps({ current }) {
-  const list = [{ n:1, label:'Upload Resume' }, { n:2, label:'Analysing' }, { n:3, label:'Question Bank' }];
+  const list = [
+    { n:1, label:'Upload' },
+    { n:2, label:'Analyse' },
+    { n:3, label:'Questions' },
+    { n:4, label:'Interview' },
+    { n:5, label:'Summary' },
+  ];
   return (
     <div className="steps">
       {list.map((s, i) => (
@@ -186,6 +274,7 @@ function Steps({ current }) {
   );
 }
 
+// ── Step 1: Upload ────────────────────────────────────────────────────────────
 function DropZone({ file, onFile }) {
   const [drag, setDrag] = useState(false);
   const ref = useRef();
@@ -210,8 +299,8 @@ function DropZone({ file, onFile }) {
         </>
       ) : (
         <>
-          <div className="dz-text"><strong>Click to upload</strong> or drag & drop your resume here</div>
-          <div className="dz-hint">PDF only · Parsed in your browser · Never stored</div>
+          <div className="dz-text"><strong>Click to upload</strong> or drag & drop resume here</div>
+          <div className="dz-hint">PDF only · Parsed in browser · Never stored</div>
         </>
       )}
     </div>
@@ -224,31 +313,31 @@ function Step1({ onStart, error }) {
     <div className="card">
       <div className="card-title">Upload Candidate Resume</div>
       <div className="card-sub">
-        Upload a PDF resume and IntegrityAI will use Claude AI to generate a personalised
-        question bank — including <strong style={{color:'#f87171'}}>trap questions</strong> designed
-        to detect AI-coached answers.
+        Upload a PDF resume and IntegrityAI will generate a personalised question bank —
+        including <strong style={{color:'#f87171'}}>trap questions</strong> to detect AI-coached answers.
       </div>
       <DropZone file={file} onFile={setFile} />
       {error && <div className="error-box">⚠️ {error}</div>}
       <button className="btn btn-primary" disabled={!file} onClick={() => onStart(file)}>
-        🧠 Generate Question Bank with Claude AI
+        🧠 Generate Question Bank
       </button>
     </div>
   );
 }
 
+// ── Step 2: Loading ───────────────────────────────────────────────────────────
 function Step2({ loadingStep }) {
   const steps = [
     { id:0, label:'Reading and extracting PDF text' },
-    { id:1, label:'Sending resume to Claude for analysis' },
+    { id:1, label:'Sending resume to AI for analysis' },
     { id:2, label:'Building personalised question bank' },
     { id:3, label:'Generating trap questions' },
   ];
   return (
     <div className="loading-card">
       <div className="spinner" />
-      <div className="loading-title">Claude is thinking…</div>
-      <div className="loading-sub">Analysing the resume and generating personalised questions. This takes about 10–15 seconds.</div>
+      <div className="loading-title">AI is thinking…</div>
+      <div className="loading-sub">Analysing resume and generating personalised questions. About 10–15 seconds.</div>
       <div className="loading-steps">
         {steps.map(s => {
           const cls = loadingStep > s.id ? 'done' : loadingStep === s.id ? 'active' : '';
@@ -264,18 +353,18 @@ function Step2({ loadingStep }) {
   );
 }
 
+// ── Step 3: Question Bank ─────────────────────────────────────────────────────
 function QuestionCard({ q, globalIndex }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const copy = () => { navigator.clipboard.writeText(q.question); setCopied(true); setTimeout(() => setCopied(false), 1500); };
-  const trapLabels = { fake_tool:'🎣 Fake Tool', contradiction:'🔀 Contradiction', simplicity:'🧠 Simplicity Test', specificity:'🔍 Specificity Drill', achievement_depth:'📊 Achievement Depth' };
   return (
     <div className="q-card">
       <div className="q-top">
         <div className="q-badges">
           <span className={`qb qb-${q.category}`}>{q.category.toUpperCase()}</span>
           <span className={`qb qb-${q.difficulty}`}>{q.difficulty}</span>
-          {q.trap_type && <span className="qb qb-traptype">{trapLabels[q.trap_type] || q.trap_type}</span>}
+          {q.trap_type && <span className="qb qb-traptype">{TRAP_LABELS[q.trap_type] || q.trap_type}</span>}
         </div>
         <div className="q-actions">
           <span className="q-num">#{String(globalIndex+1).padStart(2,'0')}</span>
@@ -295,21 +384,21 @@ function QuestionCard({ q, globalIndex }) {
   );
 }
 
-function Step3({ result, filename, onReset }) {
+function Step3({ result, filename, onReset, onStartInterview }) {
   const [tab, setTab] = useState('all');
   const tabs = [
-    { id:'all', label:`All (${result.questions.length})` },
+    { id:'all',       label:`All (${result.questions.length})` },
     { id:'technical', label:`Technical (${result.questions.filter(q=>q.category==='technical').length})` },
-    { id:'behavioral', label:`Behavioral (${result.questions.filter(q=>q.category==='behavioral').length})` },
-    { id:'trap', label:`Traps 🎣 (${result.questions.filter(q=>q.category==='trap').length})` },
-    { id:'pressure', label:`Pressure (${result.questions.filter(q=>q.category==='pressure').length})` },
+    { id:'behavioral',label:`Behavioral (${result.questions.filter(q=>q.category==='behavioral').length})` },
+    { id:'trap',      label:`Traps 🎣 (${result.questions.filter(q=>q.category==='trap').length})` },
+    { id:'pressure',  label:`Pressure (${result.questions.filter(q=>q.category==='pressure').length})` },
   ];
   const filtered = tab === 'all' ? result.questions : result.questions.filter(q=>q.category===tab);
   return (
     <div className="card card-wide">
       <div className="qb-header">
         <div className="qb-title">Question Bank Ready ✅</div>
-        <div className="qb-meta">Candidate: <span>{result.candidate_name}</span> · <span>{result.questions.length} questions</span> · File: <span>{filename}</span></div>
+        <div className="qb-meta">Candidate: <span>{result.candidate_name}</span> · <span>{result.questions.length} questions</span> · <span>{filename}</span></div>
       </div>
       {result.candidate_summary && <div className="summary-box"><div className="summary-label">CANDIDATE PROFILE</div><div className="summary-text">{result.candidate_summary}</div></div>}
       {result.risk_flags?.length > 0 && (<><div className="risk-title">⚠ CLAIMS TO PROBE CLOSELY</div><div className="risk-flags">{result.risk_flags.map((f,i) => <div key={i} className="risk-flag">{f}</div>)}</div></>)}
@@ -325,18 +414,234 @@ function Step3({ result, filename, onReset }) {
         <div className="export-actions">
           <button className="btn btn-ghost btn-sm" onClick={() => downloadJSON(result, `integrity-ai-${(result.candidate_name||'candidate').toLowerCase().replace(/\s+/g,'-')}.json`)}>Export JSON</button>
           <button className="btn btn-ghost btn-sm" onClick={onReset}>New Candidate</button>
+          <button className="btn btn-primary btn-inline btn-sm" style={{width:'auto', marginTop:0, fontSize:14, padding:'8px 20px'}} onClick={onStartInterview}>
+            ▶ Start Live Interview
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Step 4: Interview Screen ──────────────────────────────────────────────────
+function InterviewScreen({ questions, candidateName, onEnd }) {
+  const [qIndex, setQIndex]       = useState(0);
+  const [answers, setAnswers]     = useState([]);
+  const [transcript, setTranscript] = useState('');
+  const [interim, setInterim]     = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [tabSwitches, setTabSwitches] = useState(0);
+  const [saved, setSaved]         = useState(false);
+  const recognitionRef = useRef(null);
+  const startTimeRef   = useRef(Date.now());
+
+  // Tab / window focus detection
+  useEffect(() => {
+    const onHide  = () => { if (document.hidden) setTabSwitches(n => n + 1); };
+    const onBlur  = () => setTabSwitches(n => n + 1);
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
+
+  // Reset per question
+  useEffect(() => {
+    setTranscript(''); setInterim(''); setSaved(false);
+    setTabSwitches(0); startTimeRef.current = Date.now();
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }, [qIndex]);
+
+  const toggleMic = () => {
+    const hasSR = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+    if (!hasSR) {
+      alert('Speech recognition requires Chrome. Please open this page in Chrome.');
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const rec = new SR();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
+      rec.onresult = (e) => {
+        let final = '', interimText = '';
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+          else interimText += e.results[i][0].transcript;
+        }
+        setTranscript(final);
+        setInterim(interimText);
+      };
+      rec.onerror = () => setIsListening(false);
+      rec.onend   = () => setIsListening(false);
+      recognitionRef.current = rec;
+      rec.start();
+      setIsListening(true);
+    }
+  };
+
+  const saveAndAdvance = (skip = false) => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+    const fullAnswer = skip ? '[Skipped]' : (transcript + ' ' + interim).trim() || '[No answer recorded]';
+    const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
+    const newAnswers = [...answers, {
+      questionId: questions[qIndex].id,
+      question:   questions[qIndex].question,
+      category:   questions[qIndex].category,
+      trap_type:  questions[qIndex].trap_type,
+      difficulty: questions[qIndex].difficulty,
+      answer:     fullAnswer,
+      duration,
+      tabSwitches,
+    }];
+    setAnswers(newAnswers);
+    setSaved(true);
+    setTimeout(() => {
+      if (qIndex < questions.length - 1) setQIndex(qIndex + 1);
+      else onEnd(newAnswers);
+    }, 350);
+  };
+
+  const q = questions[qIndex];
+  const progress = (qIndex / questions.length) * 100;
+
+  return (
+    <div className="interview-wrap">
+      {/* Header */}
+      <div className="iv-header">
+        <div className="iv-counter">
+          Question <strong>{qIndex + 1}</strong> of <strong>{questions.length}</strong>
+          &nbsp;·&nbsp; <strong>{candidateName}</strong>
+        </div>
+        <div className="progress-track">
+          <div className="progress-fill" style={{width: `${progress}%`}} />
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => onEnd(answers)}>End Interview</button>
+      </div>
+
+      {/* Tab switch warning */}
+      {tabSwitches > 0 && (
+        <div className="tab-alert">
+          ⚠ Tab / window switched <strong>{tabSwitches}×</strong> during this answer
+        </div>
+      )}
+
+      {/* Question */}
+      <div className="iv-q-card">
+        <div className="iv-q-label">QUESTION {qIndex + 1}</div>
+        <div className="iv-q-text">{q.question}</div>
+        <div className="iv-q-badges">
+          <span className={`qb qb-${q.category}`}>{q.category.toUpperCase()}</span>
+          {q.difficulty && <span className={`qb qb-${q.difficulty}`}>{q.difficulty}</span>}
+          {q.trap_type && <span className="qb qb-traptype">{TRAP_LABELS[q.trap_type] || q.trap_type}</span>}
+        </div>
+      </div>
+
+      {/* Transcript */}
+      <div className="transcript-wrap">
+        <div className="transcript-hdr">
+          <div className="transcript-title">🎙 CANDIDATE'S ANSWER — LIVE TRANSCRIPT</div>
+          {isListening && <div className="rec-badge"><div className="rec-dot" /> RECORDING</div>}
+        </div>
+        <div className="transcript-body">
+          {(transcript || interim) ? (
+            <>{transcript}<span className="transcript-interim">{interim}</span></>
+          ) : (
+            <span className="transcript-empty">
+              {isListening ? 'Listening… candidate should speak now' : 'Press the mic button to start recording'}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="iv-actions">
+        <div className="mic-wrap">
+          <button className={`mic-btn ${isListening ? 'mic-on' : 'mic-off'}`} onClick={toggleMic} title={isListening ? 'Stop recording' : 'Start recording'}>
+            {isListening ? '⏹' : '🎙'}
+          </button>
+          <div>
+            <div className="mic-label" style={{color: isListening ? '#ef4444' : '#64748b'}}>
+              {isListening ? 'Recording…' : 'Mic off'}
+            </div>
+            <div className="mic-hint">Chrome only</div>
+          </div>
+        </div>
+        <div className="iv-right">
+          {saved && <span className="saved-tag">✓ Saved</span>}
+          <button className="btn btn-ghost btn-sm" onClick={() => saveAndAdvance(true)}>Skip →</button>
+          <button className="btn btn-primary btn-inline" style={{width:'auto', marginTop:0}} onClick={() => saveAndAdvance(false)}>
+            {qIndex < questions.length - 1 ? 'Next Question →' : 'Finish Interview ✓'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Step 5: Interview Summary (Integrity Report placeholder) ──────────────────
+function InterviewSummary({ result, answers, onReset }) {
+  const skipped = answers.filter(a => a.answer === '[Skipped]').length;
+  const flagged = answers.filter(a => a.tabSwitches > 0).length;
+  return (
+    <div className="summary-wrap">
+      <div className="summary-hdr-row">
+        <div>
+          <div className="summary-heading">Interview Complete ✅</div>
+          <div style={{fontSize:13, color:'#64748b', marginTop:4}}>
+            Candidate: <strong style={{color:'#e2e8f0'}}>{result.candidate_name}</strong>
+            &nbsp;·&nbsp; {answers.length} questions answered
+            &nbsp;·&nbsp; {skipped} skipped
+            &nbsp;·&nbsp; {flagged} flagged for tab switching
+          </div>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={onReset}>New Candidate</button>
+      </div>
+
+      <div className="coming-soon-box">
+        🔬 <strong>Integrity Report generating…</strong> — AI-powered answer scoring, suspicion meter, and hire/no-hire recommendation are coming in the next module.
+        For now, review the raw Q&amp;A transcript below.
+      </div>
+
+      {answers.map((a, i) => (
+        <div key={i} className="qa-item">
+          <div className="qa-q">Q{i+1}. {a.question}</div>
+          <div className={`qa-a ${a.answer==='[Skipped]'?'skipped':''}`}>{a.answer}</div>
+          <div className="qa-meta-row">
+            <span className={`qb qb-${a.category}`}>{a.category.toUpperCase()}</span>
+            {a.trap_type && <span className="qb qb-traptype">{TRAP_LABELS[a.trap_type]}</span>}
+            <span className="qa-tag">{a.duration}s</span>
+            {a.tabSwitches > 0 && <span className="qa-tag warn">⚠ {a.tabSwitches} tab switch{a.tabSwitches>1?'es':''}</span>}
+          </div>
+        </div>
+      ))}
+
+      <div style={{display:'flex', gap:10, marginTop:24, justifyContent:'flex-end'}}>
+        <button className="btn btn-ghost btn-sm" onClick={() => downloadJSON({candidate: result.candidate_name, answers}, `integrity-ai-interview-${(result.candidate_name||'candidate').toLowerCase().replace(/\s+/g,'-')}.json`)}>
+          Export Transcript
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={onReset}>New Candidate</button>
+      </div>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
 function App() {
-  const [step, setStep] = useState(1);
+  const [step, setStep]             = useState(1);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [result, setResult] = useState(null);
-  const [filename, setFilename] = useState('');
-  const [error, setError] = useState('');
+  const [result, setResult]         = useState(null);
+  const [filename, setFilename]     = useState('');
+  const [error, setError]           = useState('');
+  const [answers, setAnswers]       = useState([]);
 
   const handleStart = async (file) => {
     setFilename(file.name); setError(''); setStep(2); setLoadingStep(0);
@@ -352,16 +657,28 @@ function App() {
     }
   };
 
-  const reset = () => { setStep(1); setResult(null); setError(''); setFilename(''); };
+  const handleStartInterview = () => setStep(4);
+
+  const handleEndInterview = (completedAnswers) => {
+    setAnswers(completedAnswers);
+    setStep(5);
+  };
+
+  const reset = () => {
+    setStep(1); setResult(null); setError('');
+    setFilename(''); setAnswers([]);
+  };
 
   return (
     <div className="shell">
-      <Topbar />
+      <Topbar step={step} />
       <div className="main">
         <Steps current={step} />
         {step === 1 && <Step1 onStart={handleStart} error={error} />}
         {step === 2 && <Step2 loadingStep={loadingStep} />}
-        {step === 3 && result && <Step3 result={result} filename={filename} onReset={reset} />}
+        {step === 3 && result && <Step3 result={result} filename={filename} onReset={reset} onStartInterview={handleStartInterview} />}
+        {step === 4 && result && <InterviewScreen questions={result.questions} candidateName={result.candidate_name} onEnd={handleEndInterview} />}
+        {step === 5 && result && <InterviewSummary result={result} answers={answers} onReset={reset} />}
       </div>
     </div>
   );
