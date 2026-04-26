@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IntegrityAI — Smart Question Engine</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d0f14; color: #e2e8f0; min-height: 100vh; }
+    .shell { display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 32px; background: #12151d; border-bottom: 1px solid #1e2330; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #6366f1, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .logo-text { font-size: 18px; font-weight: 700; }
+    .logo-text span { color: #a855f7; }
+    .badge { font-size: 11px; font-weight: 600; letter-spacing: .5px; background: #1e2330; border: 1px solid #2d3446; padding: 3px 10px; border-radius: 20px; color: #94a3b8; }
+    .main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 40px 16px 60px; }
+    .steps { display: flex; align-items: center; margin-bottom: 40px; }
+    .step { display: flex; align-items: center; gap: 8px; }
+    .step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #2d3446; color: #475569; transition: all .3s; }
+    .step-num.active { border-color: #6366f1; color: #6366f1; background: rgba(99,102,241,.12); }
+    .step-num.done { border-color: #10b981; color: #10b981; background: rgba(16,185,129,.12); }
+    .step-label { font-size: 13px; color: #475569; font-weight: 500; }
+    .step-label.active { color: #e2e8f0; }
+    .step-divider { width: 40px; height: 1px; background: #1e2330; margin: 0 8px; }
+    .card { width: 100%; max-width: 620px; background: #12151d; border: 1px solid #1e2330; border-radius: 16px; padding: 36px; margin-bottom: 20px; }
+    .card-wide { max-width: 920px; }
+    .card-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .card-sub { color: #64748b; font-size: 14px; margin-bottom: 28px; line-height: 1.6; }
+    .dropzone { border: 2px dashed #1e2330; border-radius: 12px; padding: 48px 32px; text-align: center; cursor: pointer; transition: all .2s; }
+    .dropzone:hover, .dropzone.dragover { border-color: #6366f1; background: rgba(99,102,241,.04); }
+    .dropzone.has-file { border-color: #10b981; background: rgba(16,185,129,.04); }
+    .dz-icon { font-size: 40px; margin-bottom: 14px; }
+    .dz-text { font-size: 14px; color: #64748b; }
+    .dz-text strong { color: #a855f7; }
+    .dz-file-name { font-size: 15px; font-weight: 600; color: #10b981; margin-top: 8px; }
+    .dz-hint { font-size: 12px; color: #475569; margin-top: 6px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .2s; }
+    .btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; box-shadow: 0 0 20px rgba(99,102,241,.3); width: 100%; justify-content: center; margin-top: 24px; font-size: 15px; padding: 14px; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 28px rgba(99,102,241,.45); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ghost { background: #1e2330; color: #94a3b8; border: 1px solid #2d3446; }
+    .btn-ghost:hover { background: #252b3b; color: #e2e8f0; }
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+    .loading-card { width: 100%; max-width: 480px; text-align: center; background: #12151d; border: 1px solid #1e2330; border-radius: 16px; padding: 52px 36px; }
+    .spinner { width: 56px; height: 56px; border-radius: 50%; border: 3px solid #1e2330; border-top-color: #6366f1; animation: spin 1s linear infinite; margin: 0 auto 28px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .loading-sub { color: #475569; font-size: 14px; line-height: 1.7; }
+    .loading-steps { margin-top: 28px; text-align: left; }
+    .loading-step { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13px; color: #475569; }
+    .loading-step.done { color: #10b981; }
+    .loading-step.active { color: #a855f7; }
+    .ls-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .ls-dot.pulse { animation: pulse .8s ease-in-out infinite alternate; }
+    @keyframes pulse { from { opacity: .3; } to { opacity: 1; } }
+    .qb-header { margin-bottom: 28px; }
+    .qb-title { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    .qb-meta { font-size: 13px; color: #64748b; }
+    .qb-meta span { color: #94a3b8; font-weight: 600; }
+    .summary-box { background: #0d0f14; border: 1px solid #1e2330; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+    .summary-label { font-size: 11px; font-weight: 700; letter-spacing: .8px; color: #6366f1; margin-bottom: 6px; }
+    .summary-text { font-size: 14px; color: #94a3b8; line-height: 1.6; }
+    .risk-title { font-size: 12px; font-weight: 700; letter-spacing: .6px; color: #fbbf24; margin-bottom: 10px; }
+    .risk-flags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    .risk-flag { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: rgba(234,179,8,.1); border: 1px solid rgba(234,179,8,.25); color: #fbbf24; }
+    .category-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+    .cat-tab { padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid #1e2330; background: #0d0f14; color: #475569; transition: all .15s; }
+    .cat-tab.t-all.on    { color: #e2e8f0; background: #1e2330; border-color: #2d3446; }
+    .cat-tab.t-technical.on { color: #38bdf8; background: rgba(56,189,248,.1); border-color: rgba(56,189,248,.3); }
+    .cat-tab.t-behavioral.on { color: #34d399; background: rgba(52,211,153,.1); border-color: rgba(52,211,153,.3); }
+    .cat-tab.t-trap.on   { color: #f87171; background: rgba(248,113,113,.1); border-color: rgba(248,113,113,.3); }
+    .cat-tab.t-pressure.on { color: #fb923c; background: rgba(251,146,60,.1); border-color: rgba(251,146,60,.3); }
+    .q-list { display: flex; flex-direction: column; gap: 14px; }
+    .q-card { background: #0d0f14; border: 1px solid #1e2330; border-radius: 12px; padding: 20px; transition: border-color .2s; }
+    .q-card:hover { border-color: #2d3446; }
+    .q-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .q-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .qb { font-size: 11px; font-weight: 700; letter-spacing: .5px; padding: 3px 9px; border-radius: 4px; }
+    .qb-technical  { background: rgba(56,189,248,.12); color: #38bdf8; border: 1px solid rgba(56,189,248,.25); }
+    .qb-behavioral { background: rgba(52,211,153,.12); color: #34d399; border: 1px solid rgba(52,211,153,.25); }
+    .qb-trap       { background: rgba(248,113,113,.12); color: #f87171; border: 1px solid rgba(248,113,113,.25); }
+    .qb-pressure   { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.25); }
+    .qb-easy       { background: rgba(52,211,153,.08); color: #6ee7b7; border: 1px solid rgba(52,211,153,.15); }
+    .qb-medium     { background: rgba(250,204,21,.08); color: #fcd34d; border: 1px solid rgba(250,204,21,.15); }
+    .qb-hard       { background: rgba(248,113,113,.08); color: #fca5a5; border: 1px solid rgba(248,113,113,.15); }
+    .qb-traptype   { background: rgba(168,85,247,.1); color: #c084fc; border: 1px solid rgba(168,85,247,.25); }
+    .q-num { font-size: 12px; color: #2d3446; font-weight: 700; white-space: nowrap; margin-top: 2px; }
+    .q-text { font-size: 15px; font-weight: 600; color: #e2e8f0; line-height: 1.6; margin-bottom: 12px; }
+    .q-actions { display: flex; align-items: center; gap: 8px; }
+    .q-copy-btn, .q-expand-btn { padding: 5px 10px; font-size: 12px; border-radius: 6px; background: #1e2330; border: 1px solid #2d3446; color: #64748b; cursor: pointer; transition: all .15s; white-space: nowrap; }
+    .q-copy-btn:hover, .q-expand-btn:hover { color: #e2e8f0; border-color: #475569; }
+    .q-copy-btn.copied { color: #10b981; border-color: rgba(16,185,129,.4); }
+    .q-notes { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .q-note { display: grid; grid-template-columns: 110px 1fr; gap: 8px; }
+    .q-note-lbl { font-size: 11px; font-weight: 700; letter-spacing: .5px; color: #475569; padding-top: 2px; }
+    .q-note-val { font-size: 13px; color: #64748b; line-height: 1.5; }
+    .q-note-val.danger { color: #f87171; }
+    .q-note-val.follow { color: #a855f7; font-style: italic; }
+    .tips-box { margin-top: 28px; background: rgba(99,102,241,.06); border: 1px solid rgba(99,102,241,.2); border-radius: 10px; padding: 16px 20px; }
+    .tips-lbl { font-size: 11px; font-weight: 700; letter-spacing: .8px; color: #6366f1; margin-bottom: 8px; }
+    .tips-txt { font-size: 13px; color: #94a3b8; line-height: 1.7; }
+    .export-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 28px; padding-top: 24px; border-top: 1px solid #1e2330; }
+    .export-info { font-size: 13px; color: #475569; }
+    .export-actions { display: flex; gap: 10px; }
+    .error-box { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.25); border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #fca5a5; line-height: 1.6; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d0f14; }
+    ::-webkit-scrollbar-thumb { background: #1e2330; border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useCallback } = React;
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+async function parsePDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ') + '\n\n';
+  }
+  return text.trim();
+}
+
+// ── Question generation — calls Netlify serverless function (Groq / Llama 3) ──
+async function generateQuestions(resumeText) {
+  const res = await fetch('/api/generate-questions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resume_text: resumeText }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Server error ${res.status}`);
+  }
+  return res.json();
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function downloadJSON(obj, name) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function Topbar() {
+  return (
+    <div className="topbar">
+      <div className="logo">
+        <div className="logo-icon">🛡</div>
+        <div className="logo-text">Integrity<span>AI</span></div>
+      </div>
+      <div className="badge">MODULE 1 — SMART QUESTION ENGINE</div>
+    </div>
+  );
+}
+
+function Steps({ current }) {
+  const list = [{ n:1, label:'Upload Resume' }, { n:2, label:'Analysing' }, { n:3, label:'Question Bank' }];
+  return (
+    <div className="steps">
+      {list.map((s, i) => (
+        <React.Fragment key={s.n}>
+          {i > 0 && <div className="step-divider" />}
+          <div className="step">
+            <div className={`step-num ${current===s.n?'active':current>s.n?'done':''}`}>
+              {current > s.n ? '✓' : s.n}
+            </div>
+            <div className={`step-label ${current===s.n?'active':''}`}>{s.label}</div>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function DropZone({ file, onFile }) {
+  const [drag, setDrag] = useState(false);
+  const ref = useRef();
+  const handleDrop = useCallback(e => {
+    e.preventDefault(); setDrag(false);
+    const f = e.dataTransfer.files[0];
+    if (f && f.type === 'application/pdf') onFile(f);
+  }, [onFile]);
+  return (
+    <div className={`dropzone ${drag?'dragover':''} ${file?'has-file':''}`}
+      onDragOver={e => { e.preventDefault(); setDrag(true); }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={handleDrop}
+      onClick={() => ref.current.click()}>
+      <input ref={ref} type="file" accept=".pdf" style={{display:'none'}}
+        onChange={e => { if (e.target.files[0]) onFile(e.target.files[0]); }} />
+      <div className="dz-icon">{file ? '✅' : '📄'}</div>
+      {file ? (
+        <>
+          <div className="dz-file-name">{file.name}</div>
+          <div className="dz-hint">Click to change the resume</div>
+        </>
+      ) : (
+        <>
+          <div className="dz-text"><strong>Click to upload</strong> or drag & drop your resume here</div>
+          <div className="dz-hint">PDF only · Parsed in your browser · Never stored</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Step1({ onStart, error }) {
+  const [file, setFile] = useState(null);
+  return (
+    <div className="card">
+      <div className="card-title">Upload Candidate Resume</div>
+      <div className="card-sub">
+        Upload a PDF resume and IntegrityAI will use Claude AI to generate a personalised
+        question bank — including <strong style={{color:'#f87171'}}>trap questions</strong> designed
+        to detect AI-coached answers.
+      </div>
+      <DropZone file={file} onFile={setFile} />
+      {error && <div className="error-box">⚠️ {error}</div>}
+      <button className="btn btn-primary" disabled={!file} onClick={() => onStart(file)}>
+        🧠 Generate Question Bank with Claude AI
+      </button>
+    </div>
+  );
+}
+
+function Step2({ loadingStep }) {
+  const steps = [
+    { id:0, label:'Reading and extracting PDF text' },
+    { id:1, label:'Sending resume to Claude for analysis' },
+    { id:2, label:'Building personalised question bank' },
+    { id:3, label:'Generating trap questions' },
+  ];
+  return (
+    <div className="loading-card">
+      <div className="spinner" />
+      <div className="loading-title">Claude is thinking…</div>
+      <div className="loading-sub">Analysing the resume and generating personalised questions. This takes about 10–15 seconds.</div>
+      <div className="loading-steps">
+        {steps.map(s => {
+          const cls = loadingStep > s.id ? 'done' : loadingStep === s.id ? 'active' : '';
+          return (
+            <div key={s.id} className={`loading-step ${cls}`}>
+              <div className={`ls-dot ${loadingStep === s.id ? 'pulse' : ''}`} />
+              {s.label}{loadingStep > s.id ? ' ✓' : ''}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function QuestionCard({ q, globalIndex }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copy = () => { navigator.clipboard.writeText(q.question); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+  const trapLabels = { fake_tool:'🎣 Fake Tool', contradiction:'🔀 Contradiction', simplicity:'🧠 Simplicity Test', specificity:'🔍 Specificity Drill', achievement_depth:'📊 Achievement Depth' };
+  return (
+    <div className="q-card">
+      <div className="q-top">
+        <div className="q-badges">
+          <span className={`qb qb-${q.category}`}>{q.category.toUpperCase()}</span>
+          <span className={`qb qb-${q.difficulty}`}>{q.difficulty}</span>
+          {q.trap_type && <span className="qb qb-traptype">{trapLabels[q.trap_type] || q.trap_type}</span>}
+        </div>
+        <div className="q-actions">
+          <span className="q-num">#{String(globalIndex+1).padStart(2,'0')}</span>
+          <button className={`q-copy-btn ${copied?'copied':''}`} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
+          <button className="q-expand-btn" onClick={() => setExpanded(!expanded)}>{expanded ? '▲ Less' : '▼ Notes'}</button>
+        </div>
+      </div>
+      <div className="q-text">{q.question}</div>
+      {expanded && (
+        <div className="q-notes">
+          {q.why_it_matters && <div className="q-note"><div className="q-note-lbl">WHY IT MATTERS</div><div className="q-note-val">{q.why_it_matters}</div></div>}
+          {q.red_flags && <div className="q-note"><div className="q-note-lbl">🚩 RED FLAGS</div><div className="q-note-val danger">{q.red_flags}</div></div>}
+          {q.follow_up && <div className="q-note"><div className="q-note-lbl">FOLLOW-UP</div><div className="q-note-val follow">"{q.follow_up}"</div></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Step3({ result, filename, onReset }) {
+  const [tab, setTab] = useState('all');
+  const tabs = [
+    { id:'all', label:`All (${result.questions.length})` },
+    { id:'technical', label:`Technical (${result.questions.filter(q=>q.category==='technical').length})` },
+    { id:'behavioral', label:`Behavioral (${result.questions.filter(q=>q.category==='behavioral').length})` },
+    { id:'trap', label:`Traps 🎣 (${result.questions.filter(q=>q.category==='trap').length})` },
+    { id:'pressure', label:`Pressure (${result.questions.filter(q=>q.category==='pressure').length})` },
+  ];
+  const filtered = tab === 'all' ? result.questions : result.questions.filter(q=>q.category===tab);
+  return (
+    <div className="card card-wide">
+      <div className="qb-header">
+        <div className="qb-title">Question Bank Ready ✅</div>
+        <div className="qb-meta">Candidate: <span>{result.candidate_name}</span> · <span>{result.questions.length} questions</span> · File: <span>{filename}</span></div>
+      </div>
+      {result.candidate_summary && <div className="summary-box"><div className="summary-label">CANDIDATE PROFILE</div><div className="summary-text">{result.candidate_summary}</div></div>}
+      {result.risk_flags?.length > 0 && (<><div className="risk-title">⚠ CLAIMS TO PROBE CLOSELY</div><div className="risk-flags">{result.risk_flags.map((f,i) => <div key={i} className="risk-flag">{f}</div>)}</div></>)}
+      <div className="category-tabs">
+        {tabs.map(t => <button key={t.id} className={`cat-tab t-${t.id} ${tab===t.id?'on':''}`} onClick={() => setTab(t.id)}>{t.label}</button>)}
+      </div>
+      <div className="q-list">
+        {filtered.map((q, i) => <QuestionCard key={q.id||i} q={q} globalIndex={result.questions.indexOf(q)} />)}
+      </div>
+      {result.interviewer_tips && <div className="tips-box"><div className="tips-lbl">💡 INTERVIEWER STRATEGY</div><div className="tips-txt">{result.interviewer_tips}</div></div>}
+      <div className="export-bar">
+        <div className="export-info">{result.questions.filter(q=>q.category==='trap').length} trap questions · {result.questions.filter(q=>q.category==='pressure').length} pressure follow-ups</div>
+        <div className="export-actions">
+          <button className="btn btn-ghost btn-sm" onClick={() => downloadJSON(result, `integrity-ai-${(result.candidate_name||'candidate').toLowerCase().replace(/\s+/g,'-')}.json`)}>Export JSON</button>
+          <button className="btn btn-ghost btn-sm" onClick={onReset}>New Candidate</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [step, setStep] = useState(1);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [result, setResult] = useState(null);
+  const [filename, setFilename] = useState('');
+  const [error, setError] = useState('');
+
+  const handleStart = async (file) => {
+    setFilename(file.name); setError(''); setStep(2); setLoadingStep(0);
+    try {
+      const resumeText = await parsePDF(file);
+      setLoadingStep(1);
+      const data = await generateQuestions(resumeText);
+      setLoadingStep(3);
+      await new Promise(r => setTimeout(r, 500));
+      setResult(data); setStep(3);
+    } catch (err) {
+      setError(err.message); setStep(1);
+    }
+  };
+
+  const reset = () => { setStep(1); setResult(null); setError(''); setFilename(''); };
+
+  return (
+    <div className="shell">
+      <Topbar />
+      <div className="main">
+        <Steps current={step} />
+        {step === 1 && <Step1 onStart={handleStart} error={error} />}
+        {step === 2 && <Step2 loadingStep={loadingStep} />}
+        {step === 3 && result && <Step3 result={result} filename={filename} onReset={reset} />}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
