@@ -722,7 +722,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const recRef          = useRef(null);
   const bcRef           = useRef(null);
   const roomId          = useRef(genRoomId(candidateName));
-  const jitsiUrl        = `https://meet.jit.si/${roomId.current}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.disableModeratorIndicator=true&config.startWithVideoMuted=false&config.startWithAudioMuted=false`;
+  const jitsiUrl        = `https://meet.jit.si/${roomId.current}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.enableLobby=false&config.disableKnocking=true&config.requireDisplayName=false&config.startWithVideoMuted=false&config.startWithAudioMuted=false&config.disableModeratorIndicator=true&config.enableWelcomePage=false&config.disableProfile=true`;
+  const jitsiTabUrl     = `https://meet.jit.si/${roomId.current}`;
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -744,6 +745,22 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
       };
     }
     return () => { try { bc?.close(); } catch(e) {} };
+  }, [sessionId]);
+
+  // Cross-machine consent polling — checks signal API every 3s
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/signal?session=${sessionId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.consent_given) {
+          setChecks(prev => prev.consent ? prev : ({...prev, consent: true}));
+          setConsentAutoReceived(true);
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(id);
   }, [sessionId]);
 
   const startSpeech = () => {
@@ -971,9 +988,15 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           </div>
           {/* Live video preview — visible during setup so interviewer can verify candidate joined */}
           <div style={{marginTop:20, background:'#0d0f14', border:'1px solid #1e2330', borderRadius:10, overflow:'hidden'}}>
-            <div style={{padding:'10px 16px', borderBottom:'1px solid #1e2330', display:'flex', alignItems:'center', gap:8}}>
-              <span style={{fontSize:12,fontWeight:700,letterSpacing:'.6px',color:'#6366f1'}}>📹 VIDEO CALL PREVIEW</span>
-              <span style={{fontSize:11,color:'#475569'}}>— Confirm candidate is connected, then check item 1 below</span>
+            <div style={{padding:'10px 16px', borderBottom:'1px solid #1e2330', display:'flex', alignItems:'center', gap:8, justifyContent:'space-between'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:12,fontWeight:700,letterSpacing:'.6px',color:'#6366f1'}}>📹 VIDEO CALL PREVIEW</span>
+                <span style={{fontSize:11,color:'#475569'}}>— Confirm candidate is connected, then check item 1</span>
+              </div>
+              <a href={jitsiTabUrl} target="_blank" rel="noreferrer"
+                style={{fontSize:11,fontWeight:700,color:'#6366f1',background:'rgba(99,102,241,.12)',padding:'4px 10px',borderRadius:6,textDecoration:'none',border:'1px solid rgba(99,102,241,.3)'}}>
+                ↗ Open in new tab
+              </a>
             </div>
             <iframe
               src={jitsiUrl}
@@ -1363,11 +1386,20 @@ function CandidateMonitor({ sessionId, roomId }) {
   const [tabCount, setTabCount]   = useState(0);
   const [consented, setConsented] = useState(false);
   const [bcRef] = useState(() => { try { return new BroadcastChannel('integrity-ai-signals'); } catch(e) { return null; } });
-  const jitsiSrc = roomId ? `https://meet.jit.si/${roomId}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.disableModeratorIndicator=true&config.startWithVideoMuted=false&config.startWithAudioMuted=false` : null;
+  const jitsiSrc    = roomId ? `https://meet.jit.si/${roomId}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.enableLobby=false&config.disableKnocking=true&config.requireDisplayName=false&config.startWithVideoMuted=false&config.startWithAudioMuted=false&config.disableModeratorIndicator=true&config.enableWelcomePage=false&config.disableProfile=true` : null;
+  const jitsiTabUrl = roomId ? `https://meet.jit.si/${roomId}` : null;
 
-  const giveConsent = () => {
+  const giveConsent = async () => {
     setConsented(true);
+    // BroadcastChannel (same machine)
     try { bcRef?.postMessage({ type: 'consent_given', session: sessionId, t: Date.now() }); } catch(e) {}
+    // Signal API (cross machine)
+    try {
+      await fetch('/api/signal', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ session: sessionId, type: 'consent_given' })
+      });
+    } catch(e) {}
   };
 
   useEffect(() => {
@@ -1423,8 +1455,18 @@ function CandidateMonitor({ sessionId, roomId }) {
         </div>
       )}
       {jitsiSrc ? (
-        <iframe src={jitsiSrc} style={{flex:1,width:'100%',border:'none',minHeight:`calc(100vh - ${consented?88:160}px)`}}
-          allow="camera *; microphone *; fullscreen *; display-capture *; screen-wake-lock *" allowFullScreen />
+        <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+          {/* Open in tab button — fallback if embedded video shows lobby/waiting screen */}
+          <div style={{background:'#12151d',padding:'6px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid #1e2330',flexShrink:0}}>
+            <span style={{fontSize:11,color:'#475569'}}>Video call below — if it shows a waiting screen, open it in a new tab instead</span>
+            <a href={jitsiTabUrl} target="_blank" rel="noreferrer"
+              style={{fontSize:12,fontWeight:700,color:'#6366f1',background:'rgba(99,102,241,.12)',padding:'5px 14px',borderRadius:6,textDecoration:'none',border:'1px solid rgba(99,102,241,.3)'}}>
+              📹 Open video call in new tab
+            </a>
+          </div>
+          <iframe src={jitsiSrc} style={{flex:1,width:'100%',border:'none',minHeight:'calc(100vh - 130px)'}}
+            allow="camera *; microphone *; fullscreen *; display-capture *; screen-wake-lock *" allowFullScreen />
+        </div>
       ) : (
         <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:40}}>
           <div style={{fontSize:48}}>📹</div>
