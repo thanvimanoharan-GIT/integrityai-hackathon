@@ -249,6 +249,60 @@
     .monitor-url-block { margin-top: 12px; background: rgba(16,185,129,.05); border: 1px solid rgba(16,185,129,.2); border-radius: 8px; padding: 14px; }
     .monitor-url-lbl { font-size: 10px; font-weight: 700; letter-spacing: .6px; color: #10b981; margin-bottom: 8px; }
 
+    /* Live suspicion meter */
+    .meter-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 160px; }
+    .meter-label-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+    .meter-lbl { font-size: 10px; font-weight: 700; letter-spacing: .6px; color: #475569; }
+    .meter-val { font-size: 13px; font-weight: 800; }
+    .meter-val.low    { color: #10b981; }
+    .meter-val.medium { color: #fbbf24; }
+    .meter-val.high   { color: #ef4444; }
+    .meter-track { width: 160px; height: 7px; background: #1e2330; border-radius: 4px; overflow: hidden; }
+    .meter-fill  { height: 100%; border-radius: 4px; transition: width .6s ease, background .6s ease; }
+    .meter-fill.low    { background: linear-gradient(90deg, #059669, #10b981); }
+    .meter-fill.medium { background: linear-gradient(90deg, #d97706, #fbbf24); }
+    .meter-fill.high   { background: linear-gradient(90deg, #dc2626, #ef4444); }
+    .meter-dots { display: flex; gap: 3px; align-items: center; }
+    .meter-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .meter-dot.low    { background: #10b981; }
+    .meter-dot.medium { background: #fbbf24; }
+    .meter-dot.high   { background: #ef4444; }
+    .meter-dot.empty  { background: #1e2330; }
+    .meter-scoring { font-size: 10px; color: #6366f1; animation: blink .7s ease-in-out infinite alternate; }
+    .meter-note { font-size: 10px; color: #475569; max-width: 160px; text-align: right; line-height: 1.4; }
+
+    /* Interviewer Decision section in report */
+    .ivd-section { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; padding: 26px 28px; margin-bottom: 20px; }
+    .ivd-title { font-size: 13px; font-weight: 700; letter-spacing: .6px; color: #94a3b8; margin-bottom: 6px; }
+    .ivd-subtitle { font-size: 12px; color: #475569; margin-bottom: 20px; line-height: 1.5; }
+    .ivd-btns { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .ivd-btn { padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: 2px solid; transition: all .15s; background: transparent; }
+    .ivd-btn-hire   { border-color: #1e2330; color: #475569; }
+    .ivd-btn-hold   { border-color: #1e2330; color: #475569; }
+    .ivd-btn-reject { border-color: #1e2330; color: #475569; }
+    .ivd-btn-hire.selected   { border-color: #10b981; color: #10b981; background: rgba(16,185,129,.1); }
+    .ivd-btn-hold.selected   { border-color: #fbbf24; color: #fbbf24; background: rgba(251,191,36,.08); }
+    .ivd-btn-reject.selected { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,.08); }
+    .ivd-textarea { width: 100%; min-height: 90px; background: #0d0f14; border: 1px solid #1e2330; border-radius: 8px; padding: 12px 14px; color: #e2e8f0; font-size: 13px; line-height: 1.6; resize: vertical; outline: none; font-family: inherit; margin-bottom: 14px; }
+    .ivd-textarea::placeholder { color: #2d3446; }
+    .ivd-textarea:focus { border-color: #6366f1; }
+    .ivd-lock-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; background: linear-gradient(135deg,#6366f1,#a855f7); color: white; }
+    .ivd-lock-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* Locked decision block — shown at top of report */
+    .ivd-locked { border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+    .ivd-locked-hire   { background: rgba(16,185,129,.08); border: 1.5px solid rgba(16,185,129,.35); }
+    .ivd-locked-hold   { background: rgba(251,191,36,.06); border: 1.5px solid rgba(251,191,36,.3); }
+    .ivd-locked-reject { background: rgba(239,68,68,.07); border: 1.5px solid rgba(239,68,68,.3); }
+    .ivd-locked-badge { font-size: 22px; font-weight: 800; padding: 6px 16px; border-radius: 8px; white-space: nowrap; }
+    .ivd-locked-badge.hire   { color: #10b981; background: rgba(16,185,129,.12); }
+    .ivd-locked-badge.hold   { color: #fbbf24; background: rgba(251,191,36,.1); }
+    .ivd-locked-badge.reject { color: #ef4444; background: rgba(239,68,68,.1); }
+    .ivd-locked-body { flex: 1; }
+    .ivd-locked-lbl { font-size: 10px; font-weight: 700; letter-spacing: .7px; color: #475569; margin-bottom: 6px; }
+    .ivd-locked-text { font-size: 14px; color: #e2e8f0; line-height: 1.65; }
+    .ivd-locked-meta { font-size: 11px; color: #2d3446; margin-top: 8px; }
+
     /* ── Integrity Report ── */
     .report-wrap { width: 100%; max-width: 880px; }
     .report-toprow { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
@@ -377,6 +431,17 @@ async function scoreInterview(payload) {
   });
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || `Error ${res.status}`); }
   return res.json();
+}
+
+async function scoreTurn(answerText, turnNumber) {
+  try {
+    const res = await fetch('/api/score-turn', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer_text: answerText, turn_number: turnNumber }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch { return null; }
 }
 
 function formatTime(s) {
@@ -572,12 +637,16 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
   const [interim, setInterim]               = useState('');
   const [candidateTabSwitches, setCandidateTabSwitches] = useState(0);
   const [currentSpeaker, setCurrentSpeaker] = useState('candidate');
+  const [turnScores, setTurnScores]         = useState([]); // [{score, flag, note}]
+  const [liveScore, setLiveScore]           = useState(null);
+  const [isScoring, setIsScoring]           = useState(false);
   const [askedIds, setAskedIds]             = useState(new Set());
   const [notes, setNotes]                   = useState('');
   const [analyseError, setAnalyseError]     = useState('');
   const [checks, setChecks]                 = useState({ audio:false, candidate:false, consent:false });
   const [linkCopied, setLinkCopied]         = useState(false);
   const [monitorCopied, setMonitorCopied]   = useState(false);
+  const turnCountRef = useRef(0);
 
   const isRecordingRef  = useRef(false);
   const transcriptRef   = useRef('');
@@ -650,11 +719,33 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
     startSpeech();
   };
 
-  // Toggle speaker — commits current session text then starts a new labeled block
-  const switchSpeaker = (spk) => {
+  // Toggle speaker — commits current session text, scores candidate turns
+  const switchSpeaker = async (spk) => {
+    // Commit any in-progress speech
     transcriptRef.current += sessionFinalRef.current;
     sessionFinalRef.current = '';
     setInterim('');
+
+    // If switching AWAY from candidate, score that turn
+    if (speakerRef.current === 'candidate' && spk !== 'candidate') {
+      const lines = transcriptRef.current.split('\n');
+      // Find the last [CANDIDATE]: block
+      const lastCandLine = [...lines].reverse().find(l => l.startsWith('[CANDIDATE]: '));
+      const turnText = lastCandLine ? lastCandLine.replace('[CANDIDATE]: ', '').trim() : '';
+      if (turnText.split(' ').length >= 5) { // only score if >= 5 words
+        turnCountRef.current += 1;
+        const turnNum = turnCountRef.current;
+        setIsScoring(true);
+        scoreTurn(turnText, turnNum).then(result => {
+          setIsScoring(false);
+          if (result && typeof result.suspicion_score === 'number') {
+            setTurnScores(prev => [...prev, { score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum }]);
+            setLiveScore(result.suspicion_score);
+          }
+        });
+      }
+    }
+
     const label = spk === 'interviewer' ? '\n[INTERVIEWER]: ' : '\n[CANDIDATE]: ';
     transcriptRef.current += label;
     speakerRef.current = spk;
@@ -695,12 +786,14 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
         role: company || '',
         interviewer_notes: notes,
       });
-      onEnd({ transcript: fullTranscript, candidateTranscript: candidateText, tabSwitches: candidateTabSwitches, elapsed, notes, report });
+      onEnd({ transcript: fullTranscript, candidateTranscript: candidateText, tabSwitches: candidateTabSwitches, elapsed, notes, report, turnScores });
     } catch (err) {
       setAnalyseError(err.message);
       setIvState('recording');
     }
   };
+
+  const meterClass = (s) => s === null ? '' : s <= 40 ? 'low' : s <= 70 ? 'medium' : 'high';
 
   const copyLink    = () => { navigator.clipboard.writeText(shareUrl);   setLinkCopied(true);   setTimeout(()=>setLinkCopied(false),2500); };
   const copyMonitor = () => { navigator.clipboard.writeText(monitorUrl); setMonitorCopied(true); setTimeout(()=>setMonitorCopied(false),2500); };
@@ -737,6 +830,30 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
           <div className={`tab-pill ${candidateTabSwitches===0?'ok':'warn'}`}>
             {candidateTabSwitches===0?'✓ Candidate focused':`⚠ Candidate: ${candidateTabSwitches} tab switch${candidateTabSwitches>1?'es':''}`}
           </div>
+          {/* Live suspicion meter — appears after first candidate turn scored */}
+          {ivState === 'recording' && (
+            <div className="meter-wrap">
+              <div className="meter-label-row">
+                <span className="meter-lbl">LIVE SUSPICION</span>
+                {isScoring
+                  ? <span className="meter-scoring">scoring…</span>
+                  : liveScore !== null
+                    ? <span className={`meter-val ${meterClass(liveScore)}`}>{liveScore}</span>
+                    : <span style={{fontSize:10,color:'#2d3446'}}>—</span>}
+              </div>
+              <div className="meter-track">
+                <div className={`meter-fill ${meterClass(liveScore)}`} style={{width: liveScore !== null ? `${liveScore}%` : '0%'}} />
+              </div>
+              {turnScores.length > 0 && (
+                <div className="meter-dots">
+                  {turnScores.slice(-8).map((t,i) => <div key={i} className={`meter-dot ${meterClass(t.score)}`} title={`Turn ${t.turn}: ${t.score} — ${t.note}`} />)}
+                </div>
+              )}
+              {turnScores.length > 0 && turnScores[turnScores.length-1]?.note && (
+                <div className="meter-note">{turnScores[turnScores.length-1].note}</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -910,9 +1027,15 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
 // ── Step 5: Integrity Report ──────────────────────────────────────────────────
 function IntegrityReport({ result, interviewData, role, company, sessionId, onReset }) {
   const [showTranscript, setShowTranscript] = useState(false);
+  const [ivVerdict, setIvVerdict]           = useState(null); // 'hire'|'hold'|'reject'
+  const [ivJustification, setIvJustification] = useState('');
+  const [decisionLocked, setDecisionLocked] = useState(false);
   const { transcript, tabSwitches, elapsed, notes, report } = interviewData;
   const s = report?.integrity_score;
   const dateStr = new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+
+  const verdictLabels = { hire: '✅ HIRE', hold: '⏸ HOLD', reject: '❌ REJECT' };
+  const lockDecision = () => { if (ivVerdict) setDecisionLocked(true); };
 
   if (!report) return (
     <div className="card" style={{maxWidth:640}}>
@@ -943,12 +1066,26 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           <button className="btn btn-ghost btn-sm" onClick={()=>window.print()}>🖨 Print / PDF</button>
-          <button className="btn btn-ghost btn-sm" onClick={()=>downloadJSON({candidate:result.candidate_name,role,company,session_id:sessionId,report,transcript,notes},`integrity-report-${sessionId}.json`)}>Export JSON</button>
+          <button className="btn btn-ghost btn-sm" onClick={()=>downloadJSON({candidate:result.candidate_name,role,company,session_id:sessionId,report,transcript,notes,interviewer_decision:{verdict:ivVerdict,justification:ivJustification,locked:decisionLocked}},`integrity-report-${sessionId}.json`)}>Export JSON</button>
           <button className="btn btn-ghost btn-sm" onClick={onReset}>New Candidate</button>
         </div>
       </div>
 
-      {/* Verdict */}
+      {/* Interviewer Decision — locked block shown at top when confirmed */}
+      {decisionLocked && ivVerdict && (
+        <div className={`ivd-locked ivd-locked-${ivVerdict}`}>
+          <div className={`ivd-locked-badge ${ivVerdict}`}>{verdictLabels[ivVerdict]}</div>
+          <div className="ivd-locked-body">
+            <div className="ivd-locked-lbl">INTERVIEWER DECISION</div>
+            {ivJustification.trim()
+              ? <div className="ivd-locked-text">"{ivJustification.trim()}"</div>
+              : <div className="ivd-locked-text" style={{color:'#475569',fontStyle:'italic'}}>No written justification provided.</div>}
+            <div className="ivd-locked-meta">Confirmed by interviewer · {dateStr} · Session {sessionId}</div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Verdict */}
       <div className="verdict-card">
         <div className="score-col">
           <div className="score-lbl">INTEGRITY SCORE</div>
@@ -1003,6 +1140,33 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
         <div className="section-title">📝 Interviewer Notes</div>
         <div className="notes-in-report"><div className="notes-content">{notes}</div></div>
       </>}
+
+      {/* Interviewer Decision Input — shown until locked */}
+      {!decisionLocked && (
+        <div className="ivd-section">
+          <div className="ivd-title">👤 YOUR DECISION</div>
+          <div className="ivd-subtitle">Record your hiring decision independently. This is separate from the AI score and will appear at the top of the report once confirmed.</div>
+          <div className="ivd-btns">
+            {['hire','hold','reject'].map(v => (
+              <button key={v}
+                className={`ivd-btn ivd-btn-${v} ${ivVerdict===v?'selected':''}`}
+                onClick={() => setIvVerdict(v)}>
+                {verdictLabels[v]}
+              </button>
+            ))}
+          </div>
+          <textarea
+            className="ivd-textarea"
+            placeholder="Write your justification here…&#10;e.g. Strong technical depth confirmed under pressure. Hesitated on React hooks question but recovered well — genuine knowledge. Inconsistency on the AWS experience is worth a follow-up call."
+            value={ivJustification}
+            onChange={e => setIvJustification(e.target.value)}
+          />
+          <button className="ivd-lock-btn" disabled={!ivVerdict} onClick={lockDecision}>
+            🔒 Confirm &amp; Lock Decision
+          </button>
+          {!ivVerdict && <span style={{fontSize:11,color:'#475569',marginLeft:12}}>Select a verdict above first</span>}
+        </div>
+      )}
 
       {/* Transcript */}
       {transcript && (
