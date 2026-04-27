@@ -689,7 +689,7 @@ function Step3({ result, filename, role, company, onReset, onStartInterview }) {
 }
 
 // ── Step 4: Live Interview ────────────────────────────────────────────────────
-function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }) {
+function InterviewScreen({ questions, candidateName, company, sessionId, resumeText, onEnd }) {
   const [ivState, setIvState]               = useState('setup');
   const [elapsed, setElapsed]               = useState(0);
   const [displayText, setDisplayText]       = useState('');
@@ -703,6 +703,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
   const [notes, setNotes]                   = useState('');
   const [analyseError, setAnalyseError]     = useState('');
   const [checks, setChecks]                 = useState({ audio:false, candidate:false, consent:false });
+  const [consentAutoReceived, setConsentAutoReceived] = useState(false);
   const [monitorCopied, setMonitorCopied]   = useState(false);
   const [rightTab, setRightTab]             = useState('questions');
   const [currentTurnLatency, setCurrentTurnLatency] = useState(null);
@@ -721,7 +722,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
   const recRef          = useRef(null);
   const bcRef           = useRef(null);
   const roomId          = useRef(genRoomId(candidateName));
-  const jitsiUrl        = `https://meet.jit.si/${roomId.current}#config.prejoinPageEnabled=false`;
+  const jitsiUrl        = `https://meet.jit.si/${roomId.current}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.disableModeratorIndicator=true&config.startWithVideoMuted=false&config.startWithAudioMuted=false`;
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -731,9 +732,14 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
     try { bc = new BroadcastChannel('integrity-ai-signals'); bcRef.current = bc; } catch(e) {}
     if (bc) {
       bc.onmessage = (e) => {
-        if (e.data?.session === sessionId &&
-            (e.data.type === 'tab_switch' || e.data.type === 'window_blur')) {
-          setCandidateTabSwitches(n => n + 1);
+        if (e.data?.session === sessionId) {
+          if (e.data.type === 'tab_switch' || e.data.type === 'window_blur') {
+            setCandidateTabSwitches(n => n + 1);
+          }
+          if (e.data.type === 'consent_given') {
+            setChecks(prev => ({...prev, consent: true}));
+            setConsentAutoReceived(true);
+          }
         }
       };
     }
@@ -861,26 +867,33 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
     try {
       const trapQuestions = questions.filter(q=>q.trap_type).map(q=>q.question);
       const fullTranscript = transcriptRef.current;
-      // Extract only candidate speech for AI scoring — ignore interviewer questions
-      const candidateText = fullTranscript
+      // Extract only candidate speech for AI scoring
+      const candidateLines = fullTranscript
         .split('\n')
         .filter(line => line.startsWith('[CANDIDATE]: '))
         .map(line => line.replace('[CANDIDATE]: ', '').trim())
-        .filter(Boolean)
-        .join(' ');
+        .filter(Boolean);
+      const candidateText = candidateLines.join(' ');
+      // Use candidate-only text, fallback to full transcript, fallback to placeholder
+      const transcriptForAI = candidateText.trim().length > 20
+        ? candidateText
+        : fullTranscript.trim().length > 20
+          ? fullTranscript
+          : '[No speech was recorded during this session — manual review required]';
       const report = await scoreInterview({
-        transcript: candidateText || fullTranscript || '[No speech was recorded]',
+        transcript: transcriptForAI,
         candidate_name: candidateName,
         trap_questions: trapQuestions,
         tab_switches: candidateTabSwitches,
         duration_seconds: elapsed,
         role: company || '',
         interviewer_notes: notes,
+        resume_text: resumeText || '',
       });
       onEnd({ transcript: fullTranscript, candidateTranscript: candidateText, tabSwitches: candidateTabSwitches, elapsed, notes, report, turnScores });
     } catch (err) {
-      setAnalyseError(err.message);
-      setIvState('recording');
+      setAnalyseError('Analysis failed: ' + err.message + ' — check your internet connection and try again.');
+      setIvState('report-error');
     }
   };
 
@@ -895,6 +908,18 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
   const allChecked = checks.audio && checks.candidate && checks.consent;
 
   // ── Analysing state ──
+  if (ivState === 'report-error') return (
+    <div className="loading-card">
+      <div style={{fontSize:40,marginBottom:16}}>⚠️</div>
+      <div className="loading-title" style={{color:'#ef4444'}}>Analysis Failed</div>
+      <div className="error-box" style={{marginTop:16,textAlign:'left'}}>{analyseError}</div>
+      <div style={{display:'flex',gap:12,marginTop:24,justifyContent:'center'}}>
+        <button className="btn btn-primary" onClick={()=>{ setIvState('recording'); setAnalyseError(''); }}>↩ Return to Interview</button>
+        <button className="btn btn-danger" onClick={()=>{ setAnalyseError(''); handleEndAndAnalyse(); }}>🔄 Retry Analysis</button>
+      </div>
+    </div>
+  );
+
   if (ivState === 'analysing') return (
     <div className="loading-card">
       <div className="spinner spinner-purple" />
@@ -962,10 +987,19 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
           <div style={{marginTop:20, background:'#0d0f14', border:'1px solid #1e2330', borderRadius:10, padding:20}}>
             <div className="setup-block-title">✅ PRE-INTERVIEW CHECKLIST</div>
             <div className="setup-checklist">
-              {[['audio','Candidate has joined the video call and audio/video is working'],['consent','Candidate consent has been obtained'],['candidate','You have reviewed the question bank and are ready to begin']].map(([k,l])=>(
+              {[['audio','Candidate has joined the video call and audio/video is working'],['consent',null],['candidate','You have reviewed the question bank and are ready to begin']].map(([k,l])=>(
                 <div key={k} className="check-item" onClick={()=>toggleCheck(k)} style={{cursor:'pointer'}}>
                   <div className={`check-box ${checks[k]?'checked':''}`}>{checks[k]?'✓':''}</div>
-                  <span style={{color: checks[k]?'#94a3b8':'#64748b'}}>{l}</span>
+                  {k==='consent' ? (
+                    <span style={{color: checks[k]?'#94a3b8':'#64748b'}}>
+                      {consentAutoReceived
+                        ? <span>Candidate consent received <span style={{fontSize:10,color:'#10b981',fontWeight:700,marginLeft:6}}>✓ AUTO — from candidate device</span></span>
+                        : <span>Candidate consent obtained <span style={{fontSize:10,color:'#475569',marginLeft:6}}>(tick manually, or candidate taps consent on their link)</span></span>
+                      }
+                    </span>
+                  ) : (
+                    <span style={{color: checks[k]?'#94a3b8':'#64748b'}}>{l}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -1326,12 +1360,18 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
 // ── Candidate Monitor Page ────────────────────────────────────────────────────
 // Shown when candidate opens ?monitor=1&session=SESSION_ID
 function CandidateMonitor({ sessionId, roomId }) {
-  const [tabCount, setTabCount] = useState(0);
-  const jitsiSrc = roomId ? `https://meet.jit.si/${roomId}#config.prejoinPageEnabled=false` : null;
+  const [tabCount, setTabCount]   = useState(0);
+  const [consented, setConsented] = useState(false);
+  const [bcRef] = useState(() => { try { return new BroadcastChannel('integrity-ai-signals'); } catch(e) { return null; } });
+  const jitsiSrc = roomId ? `https://meet.jit.si/${roomId}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.disableModeratorIndicator=true&config.startWithVideoMuted=false&config.startWithAudioMuted=false` : null;
+
+  const giveConsent = () => {
+    setConsented(true);
+    try { bcRef?.postMessage({ type: 'consent_given', session: sessionId, t: Date.now() }); } catch(e) {}
+  };
 
   useEffect(() => {
-    let bc;
-    try { bc = new BroadcastChannel('integrity-ai-signals'); } catch(e) {}
+    const bc = bcRef;
     const onHide = () => {
       if (document.hidden) {
         setTabCount(n => n + 1);
@@ -1349,7 +1389,7 @@ function CandidateMonitor({ sessionId, roomId }) {
       window.removeEventListener('blur', onBlur);
       try { bc?.close(); } catch(e) {}
     };
-  }, [sessionId]);
+  }, [sessionId, bcRef]);
 
   return (
     <div style={{minHeight:'100vh',background:'#0d0f14',display:'flex',flexDirection:'column'}}>
@@ -1360,11 +1400,30 @@ function CandidateMonitor({ sessionId, roomId }) {
         </div>
         {tabCount > 0 && <div style={{background:'rgba(239,68,68,.15)',border:'1px solid #ef4444',borderRadius:8,padding:'4px 12px',fontSize:12,color:'#ef4444',fontWeight:700}}>⚠ {tabCount} tab switch{tabCount>1?'es':''} logged</div>}
       </div>
-      <div style={{background:'rgba(239,68,68,.07)',borderBottom:'1px solid rgba(239,68,68,.18)',padding:'8px 24px',fontSize:12,color:'#fca5a5',textAlign:'center',flexShrink:0}}>
-        ⚠ Keep this tab open and visible — switching away is detected and logged in your integrity report.
-      </div>
+      {/* Consent card — shown until candidate taps I Consent */}
+      {!consented ? (
+        <div style={{background:'#12151d',borderBottom:'1px solid #1e2330',padding:'20px 24px',flexShrink:0}}>
+          <div style={{maxWidth:560,margin:'0 auto',display:'flex',flexDirection:'column',gap:14}}>
+            <div style={{fontSize:14,color:'#e2e8f0',fontWeight:600,lineHeight:1.6}}>
+              This interview will be transcribed and assessed by an AI system for answer authenticity as part of the hiring process. The assessment is one input among several and is treated confidentially.
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+              <button
+                onClick={giveConsent}
+                style={{background:'#10b981',color:'#fff',border:'none',borderRadius:8,padding:'10px 28px',fontSize:14,fontWeight:700,cursor:'pointer',letterSpacing:'.3px'}}>
+                ✓ I consent — proceed to interview
+              </button>
+              <span style={{fontSize:12,color:'#475569'}}>Your interviewer will be notified automatically.</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{background:'rgba(16,185,129,.08)',borderBottom:'1px solid rgba(16,185,129,.25)',padding:'8px 24px',fontSize:12,color:'#34d399',textAlign:'center',fontWeight:600,flexShrink:0}}>
+          ✓ Consent recorded — keep this tab visible throughout the interview. Switching tabs is logged.
+        </div>
+      )}
       {jitsiSrc ? (
-        <iframe src={jitsiSrc} style={{flex:1,width:'100%',border:'none',minHeight:'calc(100vh - 88px)'}}
+        <iframe src={jitsiSrc} style={{flex:1,width:'100%',border:'none',minHeight:`calc(100vh - ${consented?88:160}px)`}}
           allow="camera *; microphone *; fullscreen *; display-capture *; screen-wake-lock *" allowFullScreen />
       ) : (
         <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:40}}>
@@ -1387,20 +1446,22 @@ function App() {
   const [company, setCompany]         = useState('');
   const [error, setError]             = useState('');
   const [interviewData, setInterviewData] = useState(null);
-  const [sessionId]                   = useState(genSessionId());
+  const [resumeText, setResumeText]       = useState('');
+  const [sessionId]                       = useState(genSessionId());
 
   const handleStart = async (file, r, c) => {
     setFilename(file.name); setRole(r); setCompany(c); setError(''); setStep(2); setLoadingStep(0);
     try {
-      const resumeText = await parsePDF(file); setLoadingStep(1);
-      const data = await generateQuestions(resumeText, r, c); setLoadingStep(3);
+      const rt = await parsePDF(file); setLoadingStep(1);
+      setResumeText(rt);
+      const data = await generateQuestions(rt, r, c); setLoadingStep(3);
       await new Promise(res => setTimeout(res, 500));
       setResult(data); setStep(3);
     } catch (err) { setError(err.message); setStep(1); }
   };
 
   const handleEndInterview = (data) => { setInterviewData(data); setStep(5); };
-  const reset = () => { setStep(1); setResult(null); setError(''); setFilename(''); setRole(''); setCompany(''); setInterviewData(null); };
+  const reset = () => { setStep(1); setResult(null); setError(''); setFilename(''); setRole(''); setCompany(''); setInterviewData(null); setResumeText(''); };
 
   return (
     <div className="shell">
@@ -1410,7 +1471,7 @@ function App() {
         {step===1 && <Step1 onStart={handleStart} error={error} />}
         {step===2 && <Step2 loadingStep={loadingStep} />}
         {step===3 && result && <Step3 result={result} filename={filename} role={role} company={company} onReset={reset} onStartInterview={()=>setStep(4)} />}
-        {step===4 && result && <InterviewScreen questions={result.questions} candidateName={result.candidate_name} company={company} sessionId={sessionId} onEnd={handleEndInterview} />}
+        {step===4 && result && <InterviewScreen questions={result.questions} candidateName={result.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} onEnd={handleEndInterview} />}
         {step===5 && result && interviewData && <IntegrityReport result={result} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={reset} />}
       </div>
     </div>
