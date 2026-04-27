@@ -487,11 +487,16 @@ async function scoreInterview(payload) {
   return res.json();
 }
 
-async function scoreTurn(answerText, turnNumber) {
+async function scoreTurn(answerText, turnNumber, latencyMs, longestSilenceMs) {
   try {
     const res = await fetch('/api/score-turn', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answer_text: answerText, turn_number: turnNumber }),
+      body: JSON.stringify({
+        answer_text: answerText,
+        turn_number: turnNumber,
+        latency_ms: latencyMs != null ? Math.round(latencyMs) : null,
+        longest_silence_ms: longestSilenceMs != null ? Math.round(longestSilenceMs) : null,
+      }),
     });
     if (!res.ok) return null;
     return res.json();
@@ -698,10 +703,15 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
   const [notes, setNotes]                   = useState('');
   const [analyseError, setAnalyseError]     = useState('');
   const [checks, setChecks]                 = useState({ audio:false, candidate:false, consent:false });
-  const [linkCopied, setLinkCopied]         = useState(false);
   const [monitorCopied, setMonitorCopied]   = useState(false);
   const [rightTab, setRightTab]             = useState('questions');
+  const [currentTurnLatency, setCurrentTurnLatency] = useState(null);
   const turnCountRef = useRef(0);
+  // Timing refs
+  const candidateTurnStartRef = useRef(null);
+  const firstWordReceivedRef  = useRef(false);
+  const lastSpeechEventRef    = useRef(null);
+  const longestSilenceRef     = useRef(0);
 
   const isRecordingRef  = useRef(false);
   const transcriptRef   = useRef('');
@@ -712,8 +722,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
   const bcRef           = useRef(null);
   const roomId          = useRef(genRoomId(candidateName));
   const jitsiUrl        = `https://meet.jit.si/${roomId.current}#config.prejoinPageEnabled=false`;
-  const shareUrl        = `https://meet.jit.si/${roomId.current}`;
-  const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}`;
+  // ONE link for candidate — video call + tab monitoring
+  const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
   // Candidate tab-switch detection via BroadcastChannel (same-machine demo)
   useEffect(() => {
@@ -747,6 +757,19 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
       sessionFinalRef.current = finals;
       setInterim(interimTxt);
       setDisplayText(transcriptRef.current + finals);
+      // Timing: latency to first word + longest mid-answer silence
+      if (speakerRef.current === 'candidate') {
+        const now = Date.now();
+        if (!firstWordReceivedRef.current && candidateTurnStartRef.current) {
+          firstWordReceivedRef.current = true;
+          setCurrentTurnLatency(now - candidateTurnStartRef.current);
+        }
+        if (lastSpeechEventRef.current) {
+          const gap = now - lastSpeechEventRef.current;
+          if (gap > longestSilenceRef.current) longestSilenceRef.current = gap;
+        }
+        lastSpeechEventRef.current = now;
+      }
     };
     rec.onend = () => {
       transcriptRef.current += sessionFinalRef.current;
@@ -781,24 +804,37 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
     sessionFinalRef.current = '';
     setInterim('');
 
-    // If switching AWAY from candidate, score that turn
+    // If switching AWAY from candidate, capture timing + score that turn
     if (speakerRef.current === 'candidate' && spk !== 'candidate') {
+      const capturedLatency = currentTurnLatency;
+      const capturedSilence = longestSilenceRef.current > 0 ? longestSilenceRef.current : null;
       const lines = transcriptRef.current.split('\n');
-      // Find the last [CANDIDATE]: block
       const lastCandLine = [...lines].reverse().find(l => l.startsWith('[CANDIDATE]: '));
       const turnText = lastCandLine ? lastCandLine.replace('[CANDIDATE]: ', '').trim() : '';
-      if (turnText.split(' ').length >= 5) { // only score if >= 5 words
+      if (turnText.split(' ').length >= 5) {
         turnCountRef.current += 1;
         const turnNum = turnCountRef.current;
         setIsScoring(true);
-        scoreTurn(turnText, turnNum).then(result => {
+        scoreTurn(turnText, turnNum, capturedLatency, capturedSilence).then(result => {
           setIsScoring(false);
           if (result && typeof result.suspicion_score === 'number') {
-            setTurnScores(prev => [...prev, { score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum }]);
+            setTurnScores(prev => [...prev, {
+              score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum,
+              latency_ms: capturedLatency, silence_ms: capturedSilence,
+            }]);
             setLiveScore(result.suspicion_score);
           }
         });
       }
+    }
+
+    // Switching TO candidate → start timing clock
+    if (spk === 'candidate') {
+      candidateTurnStartRef.current = Date.now();
+      firstWordReceivedRef.current  = false;
+      lastSpeechEventRef.current    = null;
+      longestSilenceRef.current     = 0;
+      setCurrentTurnLatency(null);
     }
 
     const label = spk === 'interviewer' ? '\n[INTERVIEWER]: ' : '\n[CANDIDATE]: ';
@@ -850,7 +886,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
 
   const meterClass = (s) => s === null ? '' : s <= 40 ? 'low' : s <= 70 ? 'medium' : 'high';
 
-  const copyLink    = () => { navigator.clipboard.writeText(shareUrl);   setLinkCopied(true);   setTimeout(()=>setLinkCopied(false),2500); };
   const copyMonitor = () => { navigator.clipboard.writeText(monitorUrl); setMonitorCopied(true); setTimeout(()=>setMonitorCopied(false),2500); };
   const toggleCheck = (k) => setChecks(prev => ({...prev, [k]: !prev[k]}));
   const toggleAsked = (id) => setAskedIds(prev => { const s=new Set(prev); s.has(id)?s.delete(id):s.add(id); return s; });
@@ -893,23 +928,15 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
         <div className="iv-setup-panel">
           <div className="iv-setup-title">📋 Pre-Interview Setup</div>
           <div className="iv-setup-grid">
-            {/* Room link */}
+            {/* Single candidate link — video + tab monitoring in one */}
             <div className="setup-block">
-              <div className="setup-block-title">📹 VIDEO CALL ROOM</div>
+              <div className="setup-block-title">🔗 CANDIDATE INTERVIEW LINK</div>
               <div className="room-link-row">
-                <div className="room-link-text" title={shareUrl}>{shareUrl}</div>
-                <button className="btn btn-ghost btn-sm" onClick={copyLink}>{linkCopied?'✓ Copied!':'Copy Link'}</button>
+                <div className="room-link-text" title={monitorUrl}>{monitorUrl}</div>
+                <button className="btn btn-ghost btn-sm" onClick={copyMonitor}>{monitorCopied?'✓ Copied!':'Copy Link'}</button>
               </div>
-              <div style={{fontSize:12,color:'#475569',lineHeight:1.6}}>Share this Jitsi link with the candidate — no account needed. The call is live below so you can see them before you start.</div>
-              {/* Candidate monitor link */}
-              <div className="monitor-url-block">
-                <div className="monitor-url-lbl">📱 CANDIDATE TAB MONITOR</div>
-                <div className="room-link-row">
-                  <div className="room-link-text" title={monitorUrl}>{monitorUrl}</div>
-                  <button className="btn btn-ghost btn-sm" onClick={copyMonitor}>{monitorCopied?'✓ Copied!':'Copy'}</button>
-                </div>
-                <div style={{fontSize:11,color:'#475569',lineHeight:1.5}}>Ask the candidate to open this link in their browser. It monitors if they switch tabs during the interview — those events appear in your report.</div>
-              </div>
+              <div style={{fontSize:12,color:'#10b981',fontWeight:600,marginTop:6}}>✓ One link does everything</div>
+              <div style={{fontSize:12,color:'#475569',lineHeight:1.6,marginTop:4}}>Share only this link with the candidate. It opens their video call and monitors if they switch tabs — no second link needed. <strong style={{color:'#94a3b8'}}>Do not share the Jitsi room link separately.</strong></div>
             </div>
             {/* Consent */}
             <div className="setup-block">
@@ -974,16 +1001,35 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
               <div className="susp-dots">
                 {[...Array(8)].map((_,i) => {
                   const t = turnScores[i];
+                  const latStr = t?.latency_ms!=null ? `⏱ ${Math.round(t.latency_ms/1000)}s` : '';
+                  const silStr = t?.silence_ms!=null  ? `🔇 ${Math.round(t.silence_ms/1000)}s pause` : '';
+                  const tip = [latStr,silStr].filter(Boolean).join(' · ');
                   return <div key={i} className={`susp-dot ${t?meterClass(t.score):'empty'}`}
-                    title={t?`Turn ${t.turn}: ${t.score}/100 — ${t.note}`:'Not yet scored'} />;
+                    title={t?`Turn ${t.turn}: ${t.score}/100\n${t.note}${tip?'\n'+tip:''}`:'Not yet scored'} />;
                 })}
                 {turnScores.length > 0 && <span style={{fontSize:10,color:'#475569',marginLeft:4}}>{turnScores.length} turn{turnScores.length>1?'s':''} scored</span>}
               </div>
             </div>
             <div className="susp-right">
               {isScoring && <div className="susp-scoring">🔄 Analysing last answer…</div>}
-              {!isScoring && turnScores.length > 0 && turnScores[turnScores.length-1]?.note &&
-                <div className="susp-note">"{turnScores[turnScores.length-1].note}"</div>}
+              {!isScoring && turnScores.length > 0 && (() => {
+                const last = turnScores[turnScores.length-1];
+                const latSec = last.latency_ms!=null ? Math.round(last.latency_ms/1000) : null;
+                const silSec = last.silence_ms!=null  ? Math.round(last.silence_ms/1000)  : null;
+                const latColor = latSec==null?'#475569': latSec>20?'#ef4444': latSec>10?'#fbbf24':'#10b981';
+                const silColor = silSec==null?'#475569': silSec<2?'#ef4444': silSec<5?'#fbbf24':'#10b981';
+                return (
+                  <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                    {last.note && <div className="susp-note">"{last.note}"</div>}
+                    <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                      {latSec!=null && <span style={{fontSize:11,fontWeight:700,color:latColor,background:'rgba(0,0,0,.35)',padding:'2px 8px',borderRadius:6}}
+                        title="Time from question end to first word — >15s may indicate reading from a source">⏱ {latSec}s to respond{latSec>15?' ⚠':''}</span>}
+                      {silSec!=null && <span style={{fontSize:11,fontWeight:700,color:silColor,background:'rgba(0,0,0,.35)',padding:'2px 8px',borderRadius:6}}
+                        title="Longest mid-answer gap — <2s in a long answer suggests reading fluently">🔇 {silSec}s max pause{silSec<2?' ⚠':''}</span>}
+                    </div>
+                  </div>
+                );
+              })()}
               {!isScoring && turnScores.length === 0 &&
                 <div className="susp-hint">Click <strong style={{color:'#6366f1'}}>🎙 You (Interviewer)</strong> after the candidate finishes each answer to score that turn.</div>}
             </div>
@@ -1279,13 +1325,13 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
 
 // ── Candidate Monitor Page ────────────────────────────────────────────────────
 // Shown when candidate opens ?monitor=1&session=SESSION_ID
-function CandidateMonitor({ sessionId }) {
+function CandidateMonitor({ sessionId, roomId }) {
   const [tabCount, setTabCount] = useState(0);
+  const jitsiSrc = roomId ? `https://meet.jit.si/${roomId}#config.prejoinPageEnabled=false` : null;
 
   useEffect(() => {
     let bc;
     try { bc = new BroadcastChannel('integrity-ai-signals'); } catch(e) {}
-
     const onHide = () => {
       if (document.hidden) {
         setTabCount(n => n + 1);
@@ -1296,7 +1342,6 @@ function CandidateMonitor({ sessionId }) {
       setTabCount(n => n + 1);
       try { bc?.postMessage({ type: 'window_blur', session: sessionId, t: Date.now() }); } catch(e) {}
     };
-
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('blur', onBlur);
     return () => {
@@ -1307,13 +1352,27 @@ function CandidateMonitor({ sessionId }) {
   }, [sessionId]);
 
   return (
-    <div className="monitor-page">
-      <div className="monitor-logo">🛡 IntegrityAI</div>
-      <div className="monitor-icon">🖥</div>
-      <div className="monitor-title">Interview in Progress</div>
-      <div className="monitor-sub">This session is being assessed for answer authenticity as part of the hiring process. Your responses are being transcribed and analysed by AI.</div>
-      <div className="monitor-warning">⚠ Please keep this tab active and visible throughout the interview. Switching tabs or minimising this window will be logged and included in your integrity report.</div>
-      {tabCount > 0 && <div className="monitor-flagged">⚠ {tabCount} focus event{tabCount>1?'s':''} detected and logged.</div>}
+    <div style={{minHeight:'100vh',background:'#0d0f14',display:'flex',flexDirection:'column'}}>
+      <div style={{background:'#12151d',borderBottom:'1px solid #1e2330',padding:'12px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:18,fontWeight:800,color:'#e2e8f0'}}>🛡 IntegrityAI</span>
+          <span style={{fontSize:11,color:'#475569',fontWeight:600,letterSpacing:'.6px'}}>CANDIDATE VIEW</span>
+        </div>
+        {tabCount > 0 && <div style={{background:'rgba(239,68,68,.15)',border:'1px solid #ef4444',borderRadius:8,padding:'4px 12px',fontSize:12,color:'#ef4444',fontWeight:700}}>⚠ {tabCount} tab switch{tabCount>1?'es':''} logged</div>}
+      </div>
+      <div style={{background:'rgba(239,68,68,.07)',borderBottom:'1px solid rgba(239,68,68,.18)',padding:'8px 24px',fontSize:12,color:'#fca5a5',textAlign:'center',flexShrink:0}}>
+        ⚠ Keep this tab open and visible — switching away is detected and logged in your integrity report.
+      </div>
+      {jitsiSrc ? (
+        <iframe src={jitsiSrc} style={{flex:1,width:'100%',border:'none',minHeight:'calc(100vh - 88px)'}}
+          allow="camera *; microphone *; fullscreen *; display-capture *; screen-wake-lock *" allowFullScreen />
+      ) : (
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:40}}>
+          <div style={{fontSize:48}}>📹</div>
+          <div style={{fontSize:18,fontWeight:700,color:'#e2e8f0'}}>Your interview session is starting</div>
+          <div style={{fontSize:14,color:'#475569',maxWidth:400,textAlign:'center',lineHeight:1.6}}>The interviewer will connect shortly. Please keep this page open and your camera and microphone ready.</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1362,7 +1421,8 @@ function AppRoot() {
   const params = new URLSearchParams(window.location.search);
   const isMonitor = params.get('monitor') === '1';
   const monitorSession = params.get('session') || 'unknown';
-  if (isMonitor) return <CandidateMonitor sessionId={monitorSession} />;
+  const monitorRoom = params.get('room') || null;
+  if (isMonitor) return <CandidateMonitor sessionId={monitorSession} roomId={monitorRoom} />;
   return <App />;
 }
 
