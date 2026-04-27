@@ -207,10 +207,33 @@
     .q-sugg:hover { background: #0d0f14; }
     .q-sugg.asked { opacity: .4; }
     .q-sugg.is-trap { border-left: 3px solid rgba(248,113,113,.5); }
+    .q-sugg.is-dynamic-trap { border-left: 3px solid #f59e0b; background: rgba(245,158,11,.06); animation: trapPulse 1.5s ease-out 2; }
+    @keyframes trapPulse { 0%,100% { background: rgba(245,158,11,.06); } 50% { background: rgba(245,158,11,.15); } }
     .q-sugg-text { font-size: 13px; color: #e2e8f0; line-height: 1.45; margin-bottom: 7px; }
     .q-sugg-text.crossed { text-decoration: line-through; color: #475569; }
     .q-sugg-foot { display: flex; align-items: center; justify-content: space-between; }
     .q-asked-mark { font-size: 10px; color: #10b981; font-weight: 700; }
+
+    /* Dynamic Trap Banner */
+    .trap-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.35); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; animation: trapBannerIn .4s ease-out; }
+    @keyframes trapBannerIn { from { opacity:0; transform: translateY(-6px); } to { opacity:1; transform: none; } }
+    .trap-banner-left { display: flex; align-items: center; gap: 8px; }
+    .trap-banner-icon { font-size: 18px; }
+    .trap-banner-text { font-size: 12px; font-weight: 700; color: #f59e0b; }
+    .trap-banner-sub { font-size: 11px; color: #92400e; margin-top: 1px; }
+    .trap-banner-close { font-size: 16px; color: #78350f; cursor: pointer; padding: 2px 6px; border-radius: 4px; background: none; border: none; transition: color .2s; }
+    .trap-banner-close:hover { color: #f59e0b; }
+
+    /* Trap deployed badge in questions header */
+    .trap-deployed-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: #f59e0b; background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3); padding: 2px 8px; border-radius: 12px; margin-left: 6px; animation: badgePop .3s ease-out; }
+    @keyframes badgePop { from { transform: scale(0.7); opacity:0; } to { transform: scale(1); opacity:1; } }
+
+    /* Trap generating spinner in questions sidebar */
+    .trap-generating { display: flex; align-items: center; gap: 8px; padding: 12px 14px; font-size: 12px; color: #f59e0b; border-bottom: 1px solid rgba(245,158,11,.2); background: rgba(245,158,11,.05); }
+    .trap-spinner { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(245,158,11,.3); border-top-color: #f59e0b; animation: spin .7s linear infinite; flex-shrink: 0; }
+
+    /* Dynamic trap target hint */
+    .q-trap-target { font-size: 10px; color: #78350f; margin-top: 4px; line-height: 1.4; }
 
     /* Notes panel */
     .notes-panel { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; overflow: hidden; }
@@ -503,6 +526,22 @@ async function scoreTurn(answerText, turnNumber, latencyMs, longestSilenceMs) {
   } catch { return null; }
 }
 
+async function generateTrap(lastAnswers, role, resumeSnippet, suspicionNotes) {
+  try {
+    const res = await fetch('/api/generate-trap', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        last_answers: lastAnswers,
+        role: role,
+        resume_snippet: resumeSnippet,
+        suspicion_notes: suspicionNotes,
+      }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch { return null; }
+}
+
 function formatTime(s) {
   return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
@@ -707,6 +746,11 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const [monitorCopied, setMonitorCopied]   = useState(false);
   const [rightTab, setRightTab]             = useState('questions');
   const [currentTurnLatency, setCurrentTurnLatency] = useState(null);
+  const [injectedTraps, setInjectedTraps]         = useState([]); // [{id, question, trap_type, target}]
+  const [trapDeployed, setTrapDeployed]           = useState(false);
+  const [trapBannerVisible, setTrapBannerVisible] = useState(false);
+  const [isGeneratingTrap, setIsGeneratingTrap]   = useState(false);
+  const trapFiredRef = useRef(false); // fire only once per session
   const turnCountRef = useRef(0);
   // Timing refs
   const candidateTurnStartRef = useRef(null);
@@ -837,14 +881,48 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
       if (turnText.split(' ').length >= 5) {
         turnCountRef.current += 1;
         const turnNum = turnCountRef.current;
+        const capturedTurnText = turnText; // capture for trap use
         setIsScoring(true);
         scoreTurn(turnText, turnNum, capturedLatency, capturedSilence).then(result => {
           setIsScoring(false);
           if (result && typeof result.suspicion_score === 'number') {
-            setTurnScores(prev => [...prev, {
-              score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum,
-              latency_ms: capturedLatency, silence_ms: capturedSilence,
-            }]);
+            setTurnScores(prev => {
+              const updated = [...prev, {
+                score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum,
+                latency_ms: capturedLatency, silence_ms: capturedSilence,
+                answer_text: capturedTurnText,
+              }];
+              // ── Dynamic Trap Trigger ──
+              // Fire once per session when 2 consecutive turns score > 70
+              if (!trapFiredRef.current && updated.length >= 2) {
+                const last2 = updated.slice(-2);
+                if (last2[0].score > 70 && last2[1].score > 70) {
+                  trapFiredRef.current = true;
+                  const lastAnswers = last2.map(t => t.answer_text).filter(Boolean);
+                  const notes = last2.map(t => t.note).filter(Boolean).join('; ');
+                  setIsGeneratingTrap(true);
+                  generateTrap(lastAnswers, candidateName, resumeText ? resumeText.substring(0, 400) : '', notes)
+                    .then(trap => {
+                      setIsGeneratingTrap(false);
+                      if (trap && trap.question) {
+                        const trapEntry = {
+                          id: `trap-dynamic-${Date.now()}`,
+                          question: trap.question,
+                          trap_type: trap.trap_type || 'pressure',
+                          target: trap.target || '',
+                          category: 'trap',
+                          dynamic: true,
+                        };
+                        setInjectedTraps(t => [trapEntry, ...t]);
+                        setTrapDeployed(true);
+                        setTrapBannerVisible(true);
+                        setRightTab('questions'); // auto-switch to questions tab
+                      }
+                    });
+                }
+              }
+              return updated;
+            });
             setLiveScore(result.suspicion_score);
           }
         });
@@ -907,7 +985,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         interviewer_notes: notes,
         resume_text: resumeText || '',
       });
-      onEnd({ transcript: fullTranscript, candidateTranscript: candidateText, tabSwitches: candidateTabSwitches, elapsed, notes, report, turnScores });
+      onEnd({ transcript: fullTranscript, candidateTranscript: candidateText, tabSwitches: candidateTabSwitches, elapsed, notes, report, turnScores, injectedTraps });
     } catch (err) {
       setAnalyseError('Analysis failed: ' + err.message + ' — check your internet connection and try again.');
       setIvState('report-error');
@@ -1165,7 +1243,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
               {/* Tab bar */}
               <div className="rpt-tabs">
                 <button className={`rpt-tab ${rightTab==='questions'?'active':''}`} onClick={()=>setRightTab('questions')}>
-                  💡 Questions ({questions.length})
+                  💡 Questions ({questions.length + injectedTraps.length})
+                  {trapDeployed && <span className="trap-deployed-badge">⚠ TRAP</span>}
                 </button>
                 <button className={`rpt-tab ${rightTab==='notes'?'active':''}`} onClick={()=>setRightTab('notes')}>
                   📝 Notes{notes.trim()?` ✦`:''}
@@ -1176,9 +1255,58 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
               {rightTab === 'questions' && (
                 <div className="rpt-tab-content">
                   <div style={{padding:'8px 14px 6px',borderBottom:'1px solid #1e2330',fontSize:10,color:'#2d3446'}}>
-                    Ask in your own words · Click to mark as covered · 🎣 = trap question
+                    Ask in your own words · Click to mark as covered · 🎣 = trap · ⚠ = AI-generated trap
                   </div>
+
+                  {/* Trap banner — shown when a dynamic trap was just deployed */}
+                  {trapBannerVisible && (
+                    <div className="trap-banner" style={{margin:'8px 10px 0'}}>
+                      <div className="trap-banner-left">
+                        <span className="trap-banner-icon">⚠</span>
+                        <div>
+                          <div className="trap-banner-text">TRAP DEPLOYED</div>
+                          <div className="trap-banner-sub">High suspicion detected · AI generated a pressure question — ask it now</div>
+                        </div>
+                      </div>
+                      <button className="trap-banner-close" onClick={()=>setTrapBannerVisible(false)}>✕</button>
+                    </div>
+                  )}
+
+                  {/* Generating trap spinner */}
+                  {isGeneratingTrap && (
+                    <div className="trap-generating">
+                      <div className="trap-spinner" />
+                      <span>⚠ High suspicion detected — generating pressure trap question…</span>
+                    </div>
+                  )}
+
                   <div className="rpt-questions-scroll">
+                    {/* Injected dynamic traps — shown at the TOP */}
+                    {injectedTraps.map((q) => (
+                      <div key={q.id} className={`q-sugg is-dynamic-trap ${askedIds.has(q.id)?'asked':''}`} onClick={()=>toggleAsked(q.id)}>
+                        <div style={{fontSize:10,fontWeight:700,color:'#f59e0b',marginBottom:5,display:'flex',alignItems:'center',gap:5}}>
+                          ⚠ AI-GENERATED PRESSURE TRAP
+                        </div>
+                        <div className={`q-sugg-text ${askedIds.has(q.id)?'crossed':''}`}>{q.question}</div>
+                        {q.target && <div className="q-trap-target">🎯 {q.target}</div>}
+                        <div className="q-sugg-foot" style={{marginTop:6}}>
+                          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                            <span className="qb qb-trap">TRAP</span>
+                            <span className="qb qb-traptype">{TRAP_LABELS[q.trap_type]||q.trap_type}</span>
+                            <span style={{fontSize:10,fontWeight:700,color:'#f59e0b',background:'rgba(245,158,11,.12)',border:'1px solid rgba(245,158,11,.25)',padding:'2px 6px',borderRadius:4}}>⚡ DYNAMIC</span>
+                          </div>
+                          {askedIds.has(q.id) && <span className="q-asked-mark">✓ Asked</span>}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Divider if we have injected traps */}
+                    {injectedTraps.length > 0 && (
+                      <div style={{padding:'6px 14px',fontSize:10,color:'#2d3446',borderBottom:'1px solid #1e2330',background:'#0d0f14'}}>
+                        — Original question bank —
+                      </div>
+                    )}
+
                     {questions.map((q) => (
                       <div key={q.id||q.question} className={`q-sugg ${askedIds.has(q.id)?'asked':''} ${q.trap_type?'is-trap':''}`} onClick={()=>toggleAsked(q.id)}>
                         <div className={`q-sugg-text ${askedIds.has(q.id)?'crossed':''}`}>{q.question}</div>
@@ -1234,7 +1362,7 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
   const [ivVerdict, setIvVerdict]           = useState(null); // 'hire'|'hold'|'reject'
   const [ivJustification, setIvJustification] = useState('');
   const [decisionLocked, setDecisionLocked] = useState(false);
-  const { transcript, tabSwitches, elapsed, notes, report } = interviewData;
+  const { transcript, tabSwitches, elapsed, notes, report, injectedTraps } = interviewData;
   const s = report?.integrity_score;
   const dateStr = new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
 
@@ -1267,6 +1395,11 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
             {tabSwitches > 0 && <span style={{color:'#fbbf24'}}> · ⚠ Candidate switched tab {tabSwitches} time{tabSwitches>1?'s':''}</span>}
           </div>
           <div className="session-id">Session: {sessionId}</div>
+          {injectedTraps && injectedTraps.length > 0 && (
+            <div style={{marginTop:6,fontSize:11,color:'#f59e0b',background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.25)',borderRadius:6,padding:'4px 10px',display:'inline-block'}}>
+              ⚠ {injectedTraps.length} AI-generated trap{injectedTraps.length>1?'s':''} deployed during interview
+            </div>
+          )}
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           <button className="btn btn-ghost btn-sm" onClick={()=>window.print()}>🖨 Print / PDF</button>
