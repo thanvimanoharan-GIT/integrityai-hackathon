@@ -702,8 +702,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const [askedIds, setAskedIds]             = useState(new Set());
   const [notes, setNotes]                   = useState('');
   const [analyseError, setAnalyseError]     = useState('');
-  const [checks, setChecks]                 = useState({ audio:false, candidate:false, consent:false });
-  const [consentAutoReceived, setConsentAutoReceived] = useState(false);
+  const [consentReady, setConsentReady]       = useState(false);
+  const [consentAuto, setConsentAuto]         = useState(false); // true = came from candidate device
   const [monitorCopied, setMonitorCopied]   = useState(false);
   const [rightTab, setRightTab]             = useState('questions');
   const [currentTurnLatency, setCurrentTurnLatency] = useState(null);
@@ -738,8 +738,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
             setCandidateTabSwitches(n => n + 1);
           }
           if (e.data.type === 'consent_given') {
-            setChecks(prev => ({...prev, consent: true}));
-            setConsentAutoReceived(true);
+            setConsentReady(true);
+            setConsentAuto(true);
           }
         }
       };
@@ -755,8 +755,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         if (!res.ok) return;
         const data = await res.json();
         if (data.consent_given) {
-          setChecks(prev => prev.consent ? prev : ({...prev, consent: true}));
-          setConsentAutoReceived(true);
+          setConsentReady(true);
+          setConsentAuto(true);
         }
       } catch {}
     }, 3000);
@@ -917,12 +917,10 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const meterClass = (s) => s === null ? '' : s <= 40 ? 'low' : s <= 70 ? 'medium' : 'high';
 
   const copyMonitor = () => { navigator.clipboard.writeText(monitorUrl); setMonitorCopied(true); setTimeout(()=>setMonitorCopied(false),2500); };
-  const toggleCheck = (k) => setChecks(prev => ({...prev, [k]: !prev[k]}));
   const toggleAsked = (id) => setAskedIds(prev => { const s=new Set(prev); s.has(id)?s.delete(id):s.add(id); return s; });
   // Count only candidate words for display
   const candidateLines = displayText.split('\n').filter(l=>l.startsWith('[CANDIDATE]: ')).map(l=>l.replace('[CANDIDATE]: ','')).join(' ');
   const wordCount = candidateLines.trim() ? candidateLines.trim().split(/\s+/).length : 0;
-  const allChecked = checks.audio && checks.candidate && checks.consent;
 
   // ── Analysing state ──
   if (ivState === 'report-error') return (
@@ -965,71 +963,87 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         </div>
       </div>
 
-      {/* Setup Panel — shown before recording starts */}
+      {/* Setup Panel */}
       {ivState === 'setup' && (
         <div className="iv-setup-panel">
-          <div className="iv-setup-title">📋 Pre-Interview Setup</div>
-          <div className="iv-setup-grid">
-            {/* Single candidate link — video + tab monitoring in one */}
-            <div className="setup-block">
-              <div className="setup-block-title">🔗 CANDIDATE INTERVIEW LINK</div>
+          <div className="iv-setup-title">Get ready to start</div>
+
+          {/* STEP 1 — Share link */}
+          <div style={{display:'flex',gap:14,alignItems:'flex-start',marginBottom:20}}>
+            <div style={{width:28,height:28,borderRadius:'50%',background:'#6366f1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:'#fff',flexShrink:0,marginTop:2}}>1</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:'#e2e8f0',marginBottom:8}}>Share this link with the candidate</div>
               <div className="room-link-row">
                 <div className="room-link-text" title={monitorUrl}>{monitorUrl}</div>
                 <button className="btn btn-ghost btn-sm" onClick={copyMonitor}>{monitorCopied?'✓ Copied!':'Copy Link'}</button>
+                <a href={`mailto:?subject=${encodeURIComponent('Your Interview Link — ' + (candidateName||'Candidate'))}&body=${encodeURIComponent('Hi ' + (candidateName||'there') + ',\n\nPlease use the link below to join your interview. It will open the video call and includes a short consent step before we begin.\n\n' + monitorUrl + '\n\nPlease keep this tab open throughout the interview.\n\nBest regards')}`}
+                  style={{padding:'5px 12px',fontSize:12,fontWeight:700,color:'#6366f1',background:'rgba(99,102,241,.1)',border:'1px solid rgba(99,102,241,.25)',borderRadius:6,textDecoration:'none',whiteSpace:'nowrap'}}>
+                  ✉ Email
+                </a>
               </div>
-              <div style={{fontSize:12,color:'#10b981',fontWeight:600,marginTop:6}}>✓ One link does everything</div>
-              <div style={{fontSize:12,color:'#475569',lineHeight:1.6,marginTop:4}}>Share only this link with the candidate. It opens their video call and monitors if they switch tabs — no second link needed. <strong style={{color:'#94a3b8'}}>Do not share the Jitsi room link separately.</strong></div>
-            </div>
-            {/* Consent */}
-            <div className="setup-block">
-              <div className="setup-block-title">⚖️ READ TO CANDIDATE BEFORE STARTING</div>
-              <div className="consent-text">"This interview will be transcribed and assessed by an AI system for authenticity and communication patterns as part of our hiring process. The assessment is one input among several. Do you consent to proceed on these terms?"</div>
-            </div>
-          </div>
-          {/* Live video preview — visible during setup so interviewer can verify candidate joined */}
-          <div style={{marginTop:20, background:'#0d0f14', border:'1px solid #1e2330', borderRadius:10, overflow:'hidden'}}>
-            <div style={{padding:'10px 16px', borderBottom:'1px solid #1e2330', display:'flex', alignItems:'center', gap:8, justifyContent:'space-between'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:12,fontWeight:700,letterSpacing:'.6px',color:'#6366f1'}}>📹 VIDEO CALL PREVIEW</span>
-                <span style={{fontSize:11,color:'#475569'}}>— Confirm candidate is connected, then check item 1</span>
+              <div style={{fontSize:12,color:'#475569',marginTop:6,lineHeight:1.5}}>
+                One link — opens their video call, shows consent form, and monitors tab switches. Send via email or chat before the interview.
               </div>
-              <a href={jitsiTabUrl} target="_blank" rel="noreferrer"
-                style={{fontSize:11,fontWeight:700,color:'#6366f1',background:'rgba(99,102,241,.12)',padding:'4px 10px',borderRadius:6,textDecoration:'none',border:'1px solid rgba(99,102,241,.3)'}}>
-                ↗ Open in new tab
-              </a>
             </div>
-            <iframe
-              src={jitsiUrl}
-              style={{width:'100%', height:320, border:'none', display:'block'}}
-              allow="camera *; microphone *; fullscreen *; display-capture *; screen-wake-lock *"
-              allowFullScreen
-            />
           </div>
 
-          {/* Checklist */}
-          <div style={{marginTop:20, background:'#0d0f14', border:'1px solid #1e2330', borderRadius:10, padding:20}}>
-            <div className="setup-block-title">✅ PRE-INTERVIEW CHECKLIST</div>
-            <div className="setup-checklist">
-              {[['audio','Candidate has joined the video call and audio/video is working'],['consent',null],['candidate','You have reviewed the question bank and are ready to begin']].map(([k,l])=>(
-                <div key={k} className="check-item" onClick={()=>toggleCheck(k)} style={{cursor:'pointer'}}>
-                  <div className={`check-box ${checks[k]?'checked':''}`}>{checks[k]?'✓':''}</div>
-                  {k==='consent' ? (
-                    <span style={{color: checks[k]?'#94a3b8':'#64748b'}}>
-                      {consentAutoReceived
-                        ? <span>Candidate consent received <span style={{fontSize:10,color:'#10b981',fontWeight:700,marginLeft:6}}>✓ AUTO — from candidate device</span></span>
-                        : <span>Candidate consent obtained <span style={{fontSize:10,color:'#475569',marginLeft:6}}>(tick manually, or candidate taps consent on their link)</span></span>
-                      }
-                    </span>
-                  ) : (
-                    <span style={{color: checks[k]?'#94a3b8':'#64748b'}}>{l}</span>
-                  )}
+          {/* STEP 2 — Consent gate */}
+          <div style={{display:'flex',gap:14,alignItems:'flex-start',marginBottom:20}}>
+            <div style={{width:28,height:28,borderRadius:'50%',background: consentReady?'#10b981':'#1e2330',border: consentReady?'none':'2px solid #2d3446',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color: consentReady?'#fff':'#475569',flexShrink:0,marginTop:2,transition:'all .4s'}}>2</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:'#e2e8f0',marginBottom:8}}>Wait for candidate consent</div>
+              {consentReady ? (
+                <div style={{background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.3)',borderRadius:8,padding:'10px 16px',display:'flex',alignItems:'center',gap:10}}>
+                  <span style={{fontSize:18}}>✅</span>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:'#10b981'}}>Consent confirmed</div>
+                    <div style={{fontSize:11,color:'#6ee7b7',marginTop:2}}>{consentAuto ? 'Candidate tapped "I Consent" on their device — received automatically' : 'Confirmed manually'}</div>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                <div style={{background:'#0d0f14',border:'1px solid #1e2330',borderRadius:8,padding:'14px 16px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                    <div style={{width:8,height:8,borderRadius:'50%',background:'#fbbf24',animation:'blink .8s ease-in-out infinite alternate'}} />
+                    <span style={{fontSize:13,color:'#94a3b8'}}>Waiting for candidate to tap <strong style={{color:'#e2e8f0'}}>"I Consent"</strong> on their link…</span>
+                  </div>
+                  <div style={{fontSize:11,color:'#475569',marginBottom:12}}>The button will light up automatically once they confirm. No action needed from you.</div>
+                  <button onClick={()=>setConsentReady(true)} style={{fontSize:12,color:'#94a3b8',background:'transparent',border:'1px solid #2d3446',borderRadius:6,padding:'5px 12px',cursor:'pointer'}}>
+                    I confirmed consent verbally — proceed anyway
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-          <div className="setup-footer">
-            <div className="audio-note">⚠ <strong>Audio tip:</strong> Use speakers (not headphones) for best transcript coverage of both voices, or hold the interview in a shared physical space.</div>
-            <button className="btn btn-green btn-auto" disabled={!allChecked} onClick={startRecording} style={{opacity:allChecked?1:.4}}>
+
+          {/* STEP 3 — Video call */}
+          <div style={{display:'flex',gap:14,alignItems:'flex-start',marginBottom:24}}>
+            <div style={{width:28,height:28,borderRadius:'50%',background:'#1e2330',border:'2px solid #2d3446',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:'#475569',flexShrink:0,marginTop:2}}>3</div>
+            <div style={{flex:1}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#e2e8f0'}}>Video call — confirm candidate is visible</div>
+                <a href={jitsiTabUrl} target="_blank" rel="noreferrer"
+                  style={{fontSize:11,fontWeight:700,color:'#6366f1',background:'rgba(99,102,241,.12)',padding:'4px 10px',borderRadius:6,textDecoration:'none',border:'1px solid rgba(99,102,241,.3)'}}>
+                  ↗ Open in new tab
+                </a>
+              </div>
+              <div style={{borderRadius:8,overflow:'hidden',border:'1px solid #1e2330'}}>
+                <iframe src={jitsiUrl} style={{width:'100%',height:280,border:'none',display:'block'}}
+                  allow="camera *; microphone *; fullscreen *; display-capture *; screen-wake-lock *" allowFullScreen />
+              </div>
+              <div style={{fontSize:11,color:'#475569',marginTop:6}}>
+                If you see a waiting screen, tap <strong style={{color:'#94a3b8'}}>↗ Open in new tab</strong> above to join the call in a full browser tab.
+              </div>
+            </div>
+          </div>
+
+          {/* Start button */}
+          <div style={{borderTop:'1px solid #1e2330',paddingTop:20,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+            <div style={{fontSize:12,color:'#475569',lineHeight:1.5}}>
+              ⚠ <strong style={{color:'#64748b'}}>Audio tip:</strong> Use speakers or a shared room for best transcript quality.
+            </div>
+            <button className="btn btn-green btn-auto" onClick={startRecording}
+              disabled={!consentReady}
+              style={{opacity: consentReady?1:.35, transition:'opacity .3s'}}>
               🔴 Start Recording Interview
             </button>
           </div>
