@@ -249,27 +249,53 @@
     .monitor-url-block { margin-top: 12px; background: rgba(16,185,129,.05); border: 1px solid rgba(16,185,129,.2); border-radius: 8px; padding: 14px; }
     .monitor-url-lbl { font-size: 10px; font-weight: 700; letter-spacing: .6px; color: #10b981; margin-bottom: 8px; }
 
-    /* Live suspicion meter */
-    .meter-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 160px; }
-    .meter-label-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-    .meter-lbl { font-size: 10px; font-weight: 700; letter-spacing: .6px; color: #475569; }
-    .meter-val { font-size: 13px; font-weight: 800; }
-    .meter-val.low    { color: #10b981; }
-    .meter-val.medium { color: #fbbf24; }
-    .meter-val.high   { color: #ef4444; }
-    .meter-track { width: 160px; height: 7px; background: #1e2330; border-radius: 4px; overflow: hidden; }
-    .meter-fill  { height: 100%; border-radius: 4px; transition: width .6s ease, background .6s ease; }
-    .meter-fill.low    { background: linear-gradient(90deg, #059669, #10b981); }
-    .meter-fill.medium { background: linear-gradient(90deg, #d97706, #fbbf24); }
-    .meter-fill.high   { background: linear-gradient(90deg, #dc2626, #ef4444); }
-    .meter-dots { display: flex; gap: 3px; align-items: center; }
-    .meter-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .meter-dot.low    { background: #10b981; }
-    .meter-dot.medium { background: #fbbf24; }
-    .meter-dot.high   { background: #ef4444; }
-    .meter-dot.empty  { background: #1e2330; }
+    /* Live suspicion meter — full-width panel */
+    .susp-panel { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; padding: 16px 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .susp-left  { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+    .susp-lbl   { font-size: 10px; font-weight: 700; letter-spacing: .7px; color: #475569; }
+    .susp-score { font-size: 38px; font-weight: 800; line-height: 1; }
+    .susp-score.low    { color: #10b981; }
+    .susp-score.medium { color: #fbbf24; }
+    .susp-score.high   { color: #ef4444; }
+    .susp-score.idle   { color: #2d3446; }
+    .susp-risk-lbl { font-size: 11px; font-weight: 700; letter-spacing: .4px; }
+    .susp-risk-lbl.low    { color: #10b981; }
+    .susp-risk-lbl.medium { color: #fbbf24; }
+    .susp-risk-lbl.high   { color: #ef4444; }
+    .susp-risk-lbl.idle   { color: #2d3446; }
+    .susp-center { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
+    .susp-track { width: 100%; height: 10px; background: #1e2330; border-radius: 5px; overflow: hidden; }
+    .susp-fill  { height: 100%; border-radius: 5px; transition: width .7s ease, background .7s ease; }
+    .susp-fill.low    { background: linear-gradient(90deg,#059669,#10b981); }
+    .susp-fill.medium { background: linear-gradient(90deg,#d97706,#fbbf24); }
+    .susp-fill.high   { background: linear-gradient(90deg,#dc2626,#ef4444); }
+    .susp-fill.idle   { background: #1e2330; }
+    .susp-dots  { display: flex; gap: 5px; align-items: center; }
+    .susp-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; cursor: default; transition: transform .15s; }
+    .susp-dot:hover { transform: scale(1.3); }
+    .susp-dot.low    { background: #10b981; }
+    .susp-dot.medium { background: #fbbf24; }
+    .susp-dot.high   { background: #ef4444; }
+    .susp-dot.empty  { background: #1e2330; border: 1px solid #2d3446; }
+    .susp-right { display: flex; flex-direction: column; gap: 6px; max-width: 260px; }
+    .susp-note  { font-size: 12px; color: #94a3b8; line-height: 1.5; font-style: italic; }
+    .susp-hint  { font-size: 11px; color: #2d3446; line-height: 1.5; }
+    .susp-scoring { font-size: 12px; color: #6366f1; font-weight: 600; animation: blink .7s ease-in-out infinite alternate; }
+
+    /* Right panel tabs */
+    .right-panel-tabbed { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; height: 100%; }
+    .rpt-tabs { display: flex; border-bottom: 1px solid #1e2330; }
+    .rpt-tab  { flex: 1; padding: 11px 14px; font-size: 12px; font-weight: 700; letter-spacing: .4px; cursor: pointer; background: transparent; border: none; color: #475569; border-bottom: 2px solid transparent; transition: all .15s; }
+    .rpt-tab:hover  { color: #94a3b8; background: rgba(255,255,255,.02); }
+    .rpt-tab.active { color: #e2e8f0; border-bottom-color: #6366f1; background: rgba(99,102,241,.04); }
+    .rpt-tab-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    .rpt-questions-scroll { flex: 1; overflow-y: auto; max-height: 560px; }
+    .rpt-notes-area { flex: 1; display: flex; flex-direction: column; }
+    .rpt-notes-textarea { flex: 1; width: 100%; min-height: 480px; background: #0d0f14; border: none; padding: 14px 16px; color: #94a3b8; font-size: 13px; line-height: 1.6; resize: none; outline: none; font-family: inherit; }
+    .rpt-notes-textarea::placeholder { color: #2d3446; }
+
+    /* keep old meter-* classes for compatibility */
     .meter-scoring { font-size: 10px; color: #6366f1; animation: blink .7s ease-in-out infinite alternate; }
-    .meter-note { font-size: 10px; color: #475569; max-width: 160px; text-align: right; line-height: 1.4; }
 
     /* Interviewer Decision section in report */
     .ivd-section { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; padding: 26px 28px; margin-bottom: 20px; }
@@ -646,6 +672,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
   const [checks, setChecks]                 = useState({ audio:false, candidate:false, consent:false });
   const [linkCopied, setLinkCopied]         = useState(false);
   const [monitorCopied, setMonitorCopied]   = useState(false);
+  const [rightTab, setRightTab]             = useState('questions');
   const turnCountRef = useRef(0);
 
   const isRecordingRef  = useRef(false);
@@ -830,30 +857,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
           <div className={`tab-pill ${candidateTabSwitches===0?'ok':'warn'}`}>
             {candidateTabSwitches===0?'✓ Candidate focused':`⚠ Candidate: ${candidateTabSwitches} tab switch${candidateTabSwitches>1?'es':''}`}
           </div>
-          {/* Live suspicion meter — appears after first candidate turn scored */}
-          {ivState === 'recording' && (
-            <div className="meter-wrap">
-              <div className="meter-label-row">
-                <span className="meter-lbl">LIVE SUSPICION</span>
-                {isScoring
-                  ? <span className="meter-scoring">scoring…</span>
-                  : liveScore !== null
-                    ? <span className={`meter-val ${meterClass(liveScore)}`}>{liveScore}</span>
-                    : <span style={{fontSize:10,color:'#2d3446'}}>—</span>}
-              </div>
-              <div className="meter-track">
-                <div className={`meter-fill ${meterClass(liveScore)}`} style={{width: liveScore !== null ? `${liveScore}%` : '0%'}} />
-              </div>
-              {turnScores.length > 0 && (
-                <div className="meter-dots">
-                  {turnScores.slice(-8).map((t,i) => <div key={i} className={`meter-dot ${meterClass(t.score)}`} title={`Turn ${t.turn}: ${t.score} — ${t.note}`} />)}
-                </div>
-              )}
-              {turnScores.length > 0 && turnScores[turnScores.length-1]?.note && (
-                <div className="meter-note">{turnScores[turnScores.length-1].note}</div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -921,6 +924,45 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
         </div>
       )}
 
+      {/* Live Suspicion Meter — full-width panel, always visible during recording */}
+      {ivState === 'recording' && (() => {
+        const sc = meterClass(liveScore);
+        const riskLabel = { low:'LOW RISK', medium:'MEDIUM RISK', high:'HIGH RISK' };
+        return (
+          <div className="susp-panel">
+            <div className="susp-left">
+              <div className="susp-lbl">📊 LIVE SUSPICION</div>
+              <div className={`susp-score ${liveScore===null?'idle':sc}`}>
+                {isScoring ? '…' : liveScore !== null ? liveScore : '—'}
+              </div>
+              <div className={`susp-risk-lbl ${liveScore===null?'idle':sc}`}>
+                {isScoring ? 'Scoring…' : liveScore !== null ? riskLabel[sc] : 'Waiting for first answer'}
+              </div>
+            </div>
+            <div className="susp-center">
+              <div className="susp-track">
+                <div className={`susp-fill ${liveScore===null?'idle':sc}`} style={{width: liveScore!==null?`${liveScore}%`:'0%'}} />
+              </div>
+              <div className="susp-dots">
+                {[...Array(8)].map((_,i) => {
+                  const t = turnScores[i];
+                  return <div key={i} className={`susp-dot ${t?meterClass(t.score):'empty'}`}
+                    title={t?`Turn ${t.turn}: ${t.score}/100 — ${t.note}`:'Not yet scored'} />;
+                })}
+                {turnScores.length > 0 && <span style={{fontSize:10,color:'#475569',marginLeft:4}}>{turnScores.length} turn{turnScores.length>1?'s':''} scored</span>}
+              </div>
+            </div>
+            <div className="susp-right">
+              {isScoring && <div className="susp-scoring">🔄 Analysing last answer…</div>}
+              {!isScoring && turnScores.length > 0 && turnScores[turnScores.length-1]?.note &&
+                <div className="susp-note">"{turnScores[turnScores.length-1].note}"</div>}
+              {!isScoring && turnScores.length === 0 &&
+                <div className="susp-hint">Click <strong style={{color:'#6366f1'}}>🎙 You (Interviewer)</strong> after the candidate finishes each answer to score that turn.</div>}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Active interview body */}
       {ivState === 'recording' && (
         <div className="iv-body">
@@ -972,39 +1014,56 @@ function InterviewScreen({ questions, candidateName, company, sessionId, onEnd }
             </div>
           </div>
 
-          {/* Right: Questions + Notes */}
+          {/* Right: Tabbed panel — Questions / Notes */}
           <div className="iv-right">
-            <div className="questions-panel">
-              <div className="panel-header">
-                <div className="panel-title">💡 SUGGESTED QUESTIONS</div>
-                <div className="panel-hint">Ask in your own words · Click to mark as covered</div>
+            <div className="right-panel-tabbed">
+              {/* Tab bar */}
+              <div className="rpt-tabs">
+                <button className={`rpt-tab ${rightTab==='questions'?'active':''}`} onClick={()=>setRightTab('questions')}>
+                  💡 Questions ({questions.length})
+                </button>
+                <button className={`rpt-tab ${rightTab==='notes'?'active':''}`} onClick={()=>setRightTab('notes')}>
+                  📝 Notes{notes.trim()?` ✦`:''}
+                </button>
               </div>
-              <div className="questions-scroll">
-                {questions.map((q) => (
-                  <div key={q.id||q.question} className={`q-sugg ${askedIds.has(q.id)?'asked':''} ${q.trap_type?'is-trap':''}`} onClick={()=>toggleAsked(q.id)}>
-                    <div className={`q-sugg-text ${askedIds.has(q.id)?'crossed':''}`}>{q.question}</div>
-                    <div className="q-sugg-foot">
-                      <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
-                        <span className={`qb qb-${q.category}`}>{q.category.toUpperCase()}</span>
-                        {q.trap_type && <span className="qb qb-traptype">{TRAP_LABELS[q.trap_type]}</span>}
-                      </div>
-                      {askedIds.has(q.id) && <span className="q-asked-mark">✓ Asked</span>}
-                    </div>
+
+              {/* Questions tab */}
+              {rightTab === 'questions' && (
+                <div className="rpt-tab-content">
+                  <div style={{padding:'8px 14px 6px',borderBottom:'1px solid #1e2330',fontSize:10,color:'#2d3446'}}>
+                    Ask in your own words · Click to mark as covered · 🎣 = trap question
                   </div>
-                ))}
-              </div>
-            </div>
-            <div className="notes-panel">
-              <div className="panel-header">
-                <div className="panel-title">📝 INTERVIEWER NOTES</div>
-                <div className="panel-hint">Private · Included in report</div>
-              </div>
-              <textarea
-                className="notes-textarea"
-                placeholder="Type observations during the interview…&#10;e.g. Hesitated on React question, gave very rehearsed answer on teamwork…"
-                value={notes}
-                onChange={e=>setNotes(e.target.value)}
-              />
+                  <div className="rpt-questions-scroll">
+                    {questions.map((q) => (
+                      <div key={q.id||q.question} className={`q-sugg ${askedIds.has(q.id)?'asked':''} ${q.trap_type?'is-trap':''}`} onClick={()=>toggleAsked(q.id)}>
+                        <div className={`q-sugg-text ${askedIds.has(q.id)?'crossed':''}`}>{q.question}</div>
+                        <div className="q-sugg-foot">
+                          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                            <span className={`qb qb-${q.category}`}>{q.category.toUpperCase()}</span>
+                            {q.trap_type && <span className="qb qb-traptype">{TRAP_LABELS[q.trap_type]}</span>}
+                          </div>
+                          {askedIds.has(q.id) && <span className="q-asked-mark">✓ Asked</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes tab */}
+              {rightTab === 'notes' && (
+                <div className="rpt-tab-content rpt-notes-area">
+                  <div style={{padding:'8px 14px 6px',borderBottom:'1px solid #1e2330',fontSize:10,color:'#2d3446'}}>
+                    Private · Not visible to candidate · Included in final report
+                  </div>
+                  <textarea
+                    className="rpt-notes-textarea"
+                    placeholder="Type observations during the interview…&#10;&#10;e.g. Hesitated on the React hooks question. Very rehearsed on teamwork answers — almost word-perfect. Stumbled when I asked for the exact error message."
+                    value={notes}
+                    onChange={e=>setNotes(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
