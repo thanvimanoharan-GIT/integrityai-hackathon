@@ -435,7 +435,35 @@ async function parsePDF(file) {
     const content = await page.getTextContent();
     text += content.items.map(x => x.str).join(' ') + '\n\n';
   }
-  return text.trim();
+  const extracted = text.trim();
+
+  // ── Resume validation ──────────────────────────────────────────────────────
+  if (extracted.length < 80) {
+    throw new Error(
+      'This PDF appears to be empty or image-only (no readable text was found). ' +
+      'Please upload a text-based resume PDF. If your resume is scanned, convert it to text first.'
+    );
+  }
+
+  const lower = extracted.toLowerCase();
+  const resumeSignals = [
+    'experience','education','skill','work','job','university','college',
+    'degree','company','project','employment','career','qualification',
+    'certif','linkedin','github','email','phone','summary','objective',
+    'intern','engineer','developer','manager','analyst','designer',
+    'bachelor','master','diploma','award','achievement','responsibility',
+    'team','built','developed','managed','led','implemented','proficient'
+  ];
+  const hits = resumeSignals.filter(w => lower.includes(w)).length;
+
+  if (hits < 3) {
+    throw new Error(
+      "This file doesn't look like a resume or CV (too few professional keywords found). " +
+      "Please upload the candidate's actual resume PDF."
+    );
+  }
+
+  return extracted;
 }
 
 async function generateQuestions(resumeText, role, company) {

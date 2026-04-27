@@ -90,9 +90,25 @@ module.exports = async (req, res) => {
   try {
     const { resume_text } = req.body;
 
-    if (!resume_text || resume_text.trim().length < 50) {
+    if (!resume_text || resume_text.trim().length < 80) {
       return res.status(400).json({
         detail: "Resume text is too short. Please upload a proper PDF."
+      });
+    }
+
+    // Guard against non-resume content — prevents AI hallucination on garbage input
+    const lower = resume_text.toLowerCase();
+    const resumeSignals = [
+      'experience','education','skill','work','job','university','college',
+      'degree','company','project','employment','career','qualification',
+      'certif','linkedin','github','email','phone','summary','objective',
+      'intern','engineer','developer','manager','analyst','designer',
+      'bachelor','master','diploma','built','developed','managed','led'
+    ];
+    const hits = resumeSignals.filter(w => lower.includes(w)).length;
+    if (hits < 3) {
+      return res.status(400).json({
+        detail: "This file doesn't appear to be a resume or CV. Please upload the candidate's actual resume PDF."
       });
     }
 
