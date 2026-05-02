@@ -805,6 +805,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const localParticipantIdRef = useRef(null);
   const lastAutoSwitchRef     = useRef(0);
   const switchSpeakerRef      = useRef(null); // always points to latest switchSpeaker fn
+  const isSwitchingRef        = useRef(false); // guards onresult/onend race on speaker switch
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -853,14 +854,18 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
     sessionFinalRef.current = '';
     rec.onresult = (e) => {
+      // Ignore any late results fired after a speaker switch — they belong to the old session
+      if (isSwitchingRef.current) return;
       let finals = ''; let interimTxt = '';
-      for (let i = 0; i < e.results.length; i++) {
+      // Use e.resultIndex so we only re-scan new results, not the entire accumulated list
+      for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) finals += e.results[i][0].transcript + ' ';
         else interimTxt += e.results[i][0].transcript;
       }
-      sessionFinalRef.current = finals;
+      // Accumulate finals for this session (don't replace — append to what we already have)
+      sessionFinalRef.current += finals;
       setInterim(interimTxt);
-      setDisplayText(transcriptRef.current + finals);
+      setDisplayText(transcriptRef.current + sessionFinalRef.current);
       // Timing: latency to first word + longest mid-answer silence
       if (speakerRef.current === 'candidate') {
         const now = Date.now();
@@ -876,7 +881,14 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
       }
     };
     rec.onend = () => {
-      transcriptRef.current += sessionFinalRef.current;
+      if (isSwitchingRef.current) {
+        // Speaker switch triggered this stop — commit already done in switchSpeaker,
+        // just clear the flag and any stale interim. Don't add anything to transcript.
+        isSwitchingRef.current = false;
+      } else {
+        // Normal auto-end (browser silence timeout) — commit what we have
+        transcriptRef.current += sessionFinalRef.current;
+      }
       sessionFinalRef.current = '';
       setInterim('');
       setDisplayText(transcriptRef.current);
@@ -981,9 +993,13 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     setCurrentSpeaker(spk);
     setDisplayText(transcriptRef.current);
 
-    // CRITICAL FIX: stop current recognition so e.results resets on restart.
+    // Stop current recognition so e.results resets on restart.
+    // isSwitchingRef guards the onresult/onend race: any late onresult events
+    // fired after stop() will be ignored, and onend skips its commit since
+    // switchSpeaker already committed above.
     if (recRef.current) {
-      try { recRef.current.stop(); } catch(e) {}
+      isSwitchingRef.current = true;
+      try { recRef.current.stop(); } catch(e) { isSwitchingRef.current = false; }
     }
   };
   // Keep ref in sync so Jitsi event listener always calls the latest closure
