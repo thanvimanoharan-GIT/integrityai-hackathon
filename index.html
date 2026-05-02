@@ -1609,22 +1609,64 @@ function CandidateMonitor({ sessionId, roomId }) {
 
 // ── Root App ──────────────────────────────────────────────────────────────────
 function App() {
-  const params    = new URLSearchParams(window.location.search);
-  const isMonitor = params.get('monitor') === '1';
-  const sessionId = params.get('session') || 'demo';
-  const roomId    = params.get('room')    || '';
+  const params      = new URLSearchParams(window.location.search);
+  const isMonitor   = params.get('monitor') === '1';
+  const monitorSid  = params.get('session') || 'demo';
+  const roomId      = params.get('room')    || '';
 
-  if (isMonitor) return <CandidateMonitor sessionId={sessionId} roomId={roomId} />;
+  if (isMonitor) return <CandidateMonitor sessionId={monitorSid} roomId={roomId} />;
 
-  const [step,       setStep]       = React.useState('upload');
-  const [questions,  setQuestions]  = React.useState(null);
-  const [resumeText, setResumeText] = React.useState('');
-  const [reportData, setReportData] = React.useState(null);
+  const [step,         setStep]         = useState('step1');
+  const [loadingStep,  setLoadingStep]  = useState(0);
+  const [loadError,    setLoadError]    = useState('');
+  const [qbResult,     setQbResult]     = useState(null);
+  const [filename,     setFilename]     = useState('');
+  const [role,         setRole]         = useState('');
+  const [company,      setCompany]      = useState('');
+  const [sessionId,    setSessionId]    = useState('');
+  const [resumeText,   setResumeText]   = useState('');
+  const [interviewData,setInterviewData]= useState(null);
 
-  if (step === 'upload')    return <ResumeUpload onDone={(q, rt) => { setQuestions(q); setResumeText(rt || ''); setStep('questions'); }} />;
-  if (step === 'questions') return <QuestionBank questions={questions} resumeText={resumeText} onStart={() => setStep('interview')} />;
-  if (step === 'interview') return <InterviewScreen questions={questions} resumeText={resumeText} onReport={(d) => { setReportData(d); setStep('report'); }} />;
-  if (step === 'report')    return <IntegrityReport data={reportData} onReset={() => { setStep('upload'); setReportData(null); setQuestions(null); setResumeText(''); }} />;
+  const handleStart = async (file, roleVal, companyVal) => {
+    setLoadError('');
+    setRole(roleVal);
+    setCompany(companyVal);
+    setFilename(file.name);
+    setSessionId(genSessionId());
+    setStep('loading');
+    setLoadingStep(0);
+    try {
+      setLoadingStep(1);
+      const text = await parsePDF(file);
+      setResumeText(text);
+      setLoadingStep(2);
+      const result = await generateQuestions(text, roleVal, companyVal);
+      setLoadingStep(3);
+      setQbResult(result);
+      setStep('step3');
+    } catch (err) {
+      setLoadError(err.message || 'Something went wrong. Please try again.');
+      setStep('step1');
+    }
+  };
+
+  const handleReset = () => {
+    setStep('step1');
+    setQbResult(null);
+    setFilename('');
+    setRole('');
+    setCompany('');
+    setSessionId('');
+    setResumeText('');
+    setInterviewData(null);
+    setLoadError('');
+  };
+
+  if (step === 'step1')    return <Step1 onStart={handleStart} error={loadError} />;
+  if (step === 'loading')  return <Step2 loadingStep={loadingStep} />;
+  if (step === 'step3')    return <Step3 result={qbResult} filename={filename} role={role} company={company} onReset={handleReset} onStartInterview={() => setStep('interview')} />;
+  if (step === 'interview') return <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} onEnd={(data) => { setInterviewData(data); setStep('report'); }} />;
+  if (step === 'report')   return <IntegrityReport result={qbResult} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={handleReset} />;
   return null;
 }
 
