@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://meet.jit.si/external_api.js"></script>
   <style>
     /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -794,6 +795,12 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const roomId          = useRef(genRoomId(candidateName));
   const jitsiUrl        = `https://meet.jit.si/${roomId.current}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.enableLobby=false&config.disableKnocking=true&config.requireDisplayName=false&config.startWithVideoMuted=false&config.startWithAudioMuted=false&config.disableModeratorIndicator=true&config.enableWelcomePage=false&config.disableProfile=true`;
   const jitsiTabUrl     = `https://meet.jit.si/${roomId.current}`;
+  // Auto speaker detection
+  const jitsiApiRef           = useRef(null);
+  const jitsiContainerRef     = useRef(null);
+  const localParticipantIdRef = useRef(null);
+  const lastAutoSwitchRef     = useRef(0);
+  const switchSpeakerRef      = useRef(null); // always points to latest switchSpeaker fn
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -879,11 +886,11 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const startRecording = () => {
     const hasSR = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     if (!hasSR) { alert('Live transcription requires Google Chrome. Please open this page in Chrome.'); return; }
-    // Start transcript with candidate label (most interviews begin with interviewer asking, candidate answering)
-    transcriptRef.current = '[CANDIDATE]: ';
-    speakerRef.current = 'candidate';
-    setCurrentSpeaker('candidate');
-    setDisplayText('[CANDIDATE]: ');
+    // Start as INTERVIEWER — interviews begin with the interviewer asking the first question
+    transcriptRef.current = '[INTERVIEWER]: ';
+    speakerRef.current = 'interviewer';
+    setCurrentSpeaker('interviewer');
+    setDisplayText('[INTERVIEWER]: ');
     isRecordingRef.current = true;
     setIvState('recording');
     timerRef.current = setInterval(() => setElapsed(n=>n+1), 1000);
@@ -969,7 +976,86 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     speakerRef.current = spk;
     setCurrentSpeaker(spk);
     setDisplayText(transcriptRef.current);
+
+    // CRITICAL FIX: stop current recognition so e.results resets on restart.
+    if (recRef.current) {
+      try { recRef.current.stop(); } catch(e) {}
+    }
   };
+  // Keep ref in sync so Jitsi event listener always calls the latest closure
+  switchSpeakerRef.current = switchSpeaker;
+
+  // Auto-speaker detection: init Jitsi IFrame API when recording starts
+  React.useEffect(() => {
+    if (ivState !== 'recording') return;
+    if (!window.JitsiMeetExternalAPI) {
+      console.warn('Jitsi IFrame API not loaded — auto-speaker detection unavailable');
+      return;
+    }
+    if (!jitsiContainerRef.current) return;
+
+    // Clean up any previous instance
+    if (jitsiApiRef.current) {
+      try { jitsiApiRef.current.dispose(); } catch(e) {}
+      jitsiApiRef.current = null;
+    }
+
+    try {
+      const api = new window.JitsiMeetExternalAPI('meet.jit.si', {
+        roomName: roomId.current,
+        parentNode: jitsiContainerRef.current,
+        userInfo: { displayName: 'Interviewer' },
+        width: '100%',
+        height: '100%',
+        configOverwrite: {
+          prejoinPageEnabled: false,
+          lobby: { enabled: false },
+          enableLobby: false,
+          disableKnocking: true,
+          requireDisplayName: false,
+          startWithVideoMuted: false,
+          startWithAudioMuted: false,
+          disableModeratorIndicator: true,
+          enableWelcomePage: false,
+          disableProfile: true,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          TOOLBAR_BUTTONS: ['microphone','camera','hangup','tileview','settings'],
+        },
+      });
+
+      // Capture our own participant ID when we join
+      api.addEventListener('videoConferenceJoined', ({ id }) => {
+        localParticipantIdRef.current = id;
+      });
+
+      // Auto-switch speaker based on who Jitsi says is dominant
+      api.addEventListener('dominantSpeakerChanged', ({ id }) => {
+        if (!isRecordingRef.current || !localParticipantIdRef.current) return;
+        const now = Date.now();
+        if (now - lastAutoSwitchRef.current < 1500) return; // debounce: ignore rapid fires
+        const newSpeaker = (id === localParticipantIdRef.current) ? 'interviewer' : 'candidate';
+        if (newSpeaker !== speakerRef.current && switchSpeakerRef.current) {
+          lastAutoSwitchRef.current = now;
+          switchSpeakerRef.current(newSpeaker);
+        }
+      });
+
+      jitsiApiRef.current = api;
+    } catch(err) {
+      console.warn('Jitsi IFrame API init error:', err);
+    }
+
+    return () => {
+      if (jitsiApiRef.current) {
+        try { jitsiApiRef.current.dispose(); } catch(e) {}
+        jitsiApiRef.current = null;
+        localParticipantIdRef.current = null;
+      }
+    };
+  }, [ivState]);
 
   const stopRecording = () => {
     isRecordingRef.current = false;
@@ -1232,7 +1318,7 @@ function AnalysingScreen({ analyseError }) {
                 );
               })()}
               {!isScoring && turnScores.length === 0 &&
-                <div className="susp-hint">Click <strong style={{color:'#6366f1'}}>🎙 You (Interviewer)</strong> after the candidate finishes each answer to score that turn.</div>}
+                <div className="susp-hint">Speaker auto-detected via Jitsi · scored when candidate turn ends · click buttons above to override</div>}
             </div>
           </div>
         );
@@ -1244,13 +1330,14 @@ function AnalysingScreen({ analyseError }) {
           {/* Left: Video + Transcript */}
           <div className="iv-left">
             <div className="video-card">
-              <div className="video-label">📹 VIDEO CALL</div>
-              <iframe
-                className="jitsi-frame"
-                src={jitsiUrl}
-                allow="camera *; microphone *; fullscreen *; display-capture *; screen-wake-lock *"
-                allowFullScreen
-              />
+              <div className="video-label" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span>📹 VIDEO CALL</span>
+                <span style={{fontSize:10,fontWeight:700,color:'#6366f1',background:'rgba(99,102,241,.12)',border:'1px solid rgba(99,102,241,.25)',padding:'2px 8px',borderRadius:12,letterSpacing:.5}}>
+                  🤖 AUTO SPEAKER DETECT
+                </span>
+              </div>
+              {/* Jitsi IFrame API mounts here — auto speaker detection via dominantSpeakerChanged */}
+              <div ref={jitsiContainerRef} className="jitsi-frame" style={{background:'#0d0f14',overflow:'hidden'}} />
             </div>
             <div className="transcript-card">
               <div className="transcript-label">
@@ -1264,7 +1351,9 @@ function AnalysingScreen({ analyseError }) {
                   onClick={()=>switchSpeaker('interviewer')}>🎙 You (Interviewer)</button>
                 <button className={`spk-btn spk-btn-candidate ${currentSpeaker==='candidate'?'active':''}`}
                   onClick={()=>switchSpeaker('candidate')}>👤 Candidate</button>
-                <span style={{fontSize:10,color:'#2d3446',marginLeft:4}}>Click when speaker changes</span>
+                <span style={{fontSize:10,color:'#6366f1',marginLeft:4,fontWeight:600}}>
+                  {jitsiApiRef.current ? '🤖 Auto-detecting · click to override' : 'Click when speaker changes'}
+                </span>
               </div>
               <div className="transcript-body">
                 {(displayText||interim) ? (() => {
