@@ -17,10 +17,12 @@
     /* ── Topbar ── */
     .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 32px; background: #12151d; border-bottom: 1px solid #1e2330; position: sticky; top: 0; z-index: 100; }
     .logo { display: flex; align-items: center; gap: 10px; }
-    .logo-icon { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #6366f1, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 18px; }
-    .logo-text { font-size: 18px; font-weight: 700; }
+    .logo-icon { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg, #6366f1, #a855f7); display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 0 14px rgba(168,85,247,.45); }
+    .logo { gap: 12px; }
+    .logo-text { font-size: 18px; font-weight: 700; line-height: 1.1; }
     .logo-text span { color: #a855f7; }
-    .badge { font-size: 11px; font-weight: 600; letter-spacing: .5px; background: #1e2330; border: 1px solid #2d3446; padding: 3px 10px; border-radius: 20px; color: #94a3b8; }
+    .logo-tagline { font-size: 10px; color: #475569; letter-spacing: .4px; font-weight: 500; }
+    .badge { font-size: 10px; font-weight: 700; letter-spacing: .7px; background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.25); padding: 4px 12px; border-radius: 20px; color: #818cf8; }
 
     /* ── Layout ── */
     .main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 36px 16px 60px; }
@@ -576,7 +578,10 @@ function Topbar({ step }) {
     <div className="topbar">
       <div className="logo">
         <div className="logo-icon">🛡</div>
-        <div className="logo-text">Integrity<span>AI</span></div>
+        <div>
+          <div className="logo-text">Integrity<span>AI</span></div>
+          <div className="logo-tagline">Interview authenticity detector</div>
+        </div>
       </div>
       <div className="badge">{labels[step]||'INTEGRITY AI'}</div>
     </div>
@@ -611,7 +616,7 @@ function DropZone({ file, onFile }) {
       <input ref={ref} type="file" accept=".pdf" style={{display:'none'}} onChange={e=>{if(e.target.files[0])onFile(e.target.files[0]);}} />
       <div className="dz-icon">{file?'✅':'📄'}</div>
       {file ? (<><div className="dz-file-name">{file.name}</div><div className="dz-hint">Click to change</div></>)
-             : (<><div className="dz-text"><strong>Click to upload</strong> or drag & drop resume here</div><div className="dz-hint">PDF only · Parsed in browser · Never stored</div></>)}
+             : (<><div className="dz-text"><strong>Click to upload</strong> or drag & drop resume here</div><div className="dz-hint">PDF only · Parsed in your browser · Never uploaded to any server</div></>)}
     </div>
   );
 }
@@ -623,7 +628,7 @@ function Step1({ onStart, error }) {
   return (
     <div className="card">
       <div className="card-title">Set Up Interview</div>
-      <div className="card-sub">Upload the candidate's resume. IntegrityAI generates a personalised question bank — including <strong style={{color:'#f87171'}}>trap questions</strong> designed to expose AI-coached answers. You then conduct the interview naturally while the tool records and analyses.</div>
+      <div className="card-sub">Upload the candidate's resume PDF. IntegrityAI reads it, builds a personalised question bank, and plants <strong style={{color:'#f87171'}}>trap questions</strong> tuned to their exact claimed experience — so AI-coached answers have nowhere to hide.</div>
       <div className="field-row">
         <div>
           <label className="field-label">Role Being Interviewed For</label>
@@ -638,7 +643,7 @@ function Step1({ onStart, error }) {
       <DropZone file={file} onFile={setFile} />
       {error && <div className="error-box">⚠️ {error}</div>}
       <button className="btn btn-primary" disabled={!file} onClick={()=>onStart(file, role, company)}>
-        🧠 Generate Question Bank
+        🧠 Generate Question Bank →
       </button>
     </div>
   );
@@ -646,16 +651,37 @@ function Step1({ onStart, error }) {
 
 // ── Step 2: Loading ───────────────────────────────────────────────────────────
 function Step2({ loadingStep }) {
-  const steps = [{id:0,l:'Extracting text from PDF'},{id:1,l:'Sending resume to AI'},{id:2,l:'Building personalised question bank'},{id:3,l:'Generating trap questions'}];
+  const steps = [
+    {id:0, l:'Reading resume', detail:'Extracting skills, roles, and projects'},
+    {id:1, l:'Profiling the candidate', detail:'Mapping claimed experience to interview angles'},
+    {id:2, l:'Building question bank', detail:'Personalised technical + behavioural questions'},
+    {id:3, l:'Crafting trap questions', detail:'Fake tools, contradiction probes, depth tests'}
+  ];
+  const headlines = [
+    'Reading their story…',
+    'Finding the gaps…',
+    'Designing the questions…',
+    'Setting the traps…'
+  ];
+  const headline = headlines[Math.min(loadingStep, headlines.length - 1)];
   return (
     <div className="loading-card">
       <div className="spinner" />
-      <div className="loading-title">AI is thinking…</div>
-      <div className="loading-sub">Building a personalised question bank tuned to this candidate's exact profile and claimed experience.</div>
+      <div className="loading-title" style={{background:'linear-gradient(135deg,#818cf8,#a855f7)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>{headline}</div>
+      <div className="loading-sub">Building a personalised question bank tuned to this candidate's exact profile — including trap questions they won't see coming.</div>
       <div className="loading-steps">
-        {steps.map(s => { const c = loadingStep>s.id?'done':loadingStep===s.id?'active':''; return (
-          <div key={s.id} className={`loading-step ${c}`}><div className={`ls-dot ${loadingStep===s.id?'pulse':''}`} />{s.l}{loadingStep>s.id?' ✓':''}</div>
-        );})}
+        {steps.map(s => {
+          const c = loadingStep>s.id?'done':loadingStep===s.id?'active':'';
+          return (
+            <div key={s.id} className={`loading-step ${c}`}>
+              <div className={`ls-dot ${loadingStep===s.id?'pulse':''}`} />
+              <div>
+                <div>{s.l}{loadingStep>s.id?' ✓':''}</div>
+                {loadingStep===s.id && <div style={{fontSize:11,color:'#6366f1',marginTop:2}}>{s.detail}</div>}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1014,13 +1040,37 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   );
 
   if (ivState === 'analysing') return (
+    <AnalysingScreen analyseError={analyseError} />
+  );
+
+
+function AnalysingScreen({ analyseError }) {
+  const checks = [
+    '🔍 Cross-referencing resume claims…',
+    '🧠 Detecting AI-generated language patterns…',
+    '⏱ Analysing response latency signals…',
+    '🎯 Scoring trap question responses…',
+    '📊 Building integrity verdict…',
+  ];
+  const [idx, setIdx] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % checks.length), 2200);
+    return () => clearInterval(t);
+  }, []);
+  return (
     <div className="loading-card">
       <div className="spinner spinner-purple" />
-      <div className="loading-title">Analysing interview…</div>
-      <div className="loading-sub" style={{marginTop:10}}>AI is reading the full transcript and checking for scripted language, vocabulary shifts, fake tool responses, and authenticity signals. About 10–15 seconds.</div>
+      <div className="loading-title" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>
+        Building integrity report…
+      </div>
+      <div className="loading-sub" style={{marginTop:12,minHeight:22,transition:'opacity .3s'}}>
+        {checks[idx]}
+      </div>
+      <div style={{marginTop:20,fontSize:12,color:'#334155'}}>9-dimension analysis · Usually 10–15 seconds</div>
       {analyseError && <div className="error-box" style={{marginTop:20}}>⚠️ {analyseError}</div>}
     </div>
   );
+}
 
   return (
     <div className="iv-wrap">
