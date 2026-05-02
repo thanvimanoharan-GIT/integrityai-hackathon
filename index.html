@@ -893,10 +893,10 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
                 answer_text: capturedTurnText,
               }];
               // ── Dynamic Trap Trigger ──
-              // Fire once per session when 2 consecutive turns score > 70
+              // Fire once per session when 2 consecutive turns score > 55
               if (!trapFiredRef.current && updated.length >= 2) {
                 const last2 = updated.slice(-2);
-                if (last2[0].score > 70 && last2[1].score > 70) {
+                if (last2[0].score > 55 && last2[1].score > 55) {
                   trapFiredRef.current = true;
                   const lastAnswers = last2.map(t => t.answer_text).filter(Boolean);
                   const notes = last2.map(t => t.note).filter(Boolean).join('; ');
@@ -1136,10 +1136,11 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         return (
           <div className="susp-panel">
             <div className="susp-left">
-              <div className="susp-lbl">📊 LIVE SUSPICION</div>
+              <div className="susp-lbl">📊 SUSPICION SCORE</div>
               <div className={`susp-score ${liveScore===null?'idle':sc}`}>
-                {isScoring ? '…' : liveScore !== null ? liveScore : '—'}
+                {isScoring ? '…' : liveScore !== null ? <>{liveScore}<span style={{fontSize:14,fontWeight:400,opacity:.7}}>/100</span></> : '—'}
               </div>
+              <div style={{fontSize:10,color:'#64748b',marginBottom:2}}>0 = genuine · 100 = suspicious</div>
               <div className={`susp-risk-lbl ${liveScore===null?'idle':sc}`}>
                 {isScoring ? 'Scoring…' : liveScore !== null ? riskLabel[sc] : 'Waiting for first answer'}
               </div>
