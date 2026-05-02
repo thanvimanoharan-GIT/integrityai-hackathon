@@ -719,14 +719,18 @@ function QuestionCard({ q, idx }) {
 
 function Step3({ result, filename, role, company, onReset, onStartInterview }) {
   const [tab, setTab] = useState('all');
+  // Normalise on client too — if trap_type is set, treat as trap category
+  const normQ = q => (q.trap_type && q.trap_type !== 'null' && q.trap_type !== null)
+    ? { ...q, category: 'trap' } : q;
+  const questions = result.questions.map(normQ);
   const tabs = [
-    {id:'all',l:`All (${result.questions.length})`},
-    {id:'technical',l:`Technical (${result.questions.filter(q=>q.category==='technical').length})`},
-    {id:'behavioral',l:`Behavioral (${result.questions.filter(q=>q.category==='behavioral').length})`},
-    {id:'trap',l:`Traps 🎣 (${result.questions.filter(q=>q.category==='trap').length})`},
-    {id:'pressure',l:`Pressure (${result.questions.filter(q=>q.category==='pressure').length})`},
+    {id:'all',l:`All (${questions.length})`},
+    {id:'technical',l:`Technical (${questions.filter(q=>q.category==='technical').length})`},
+    {id:'behavioral',l:`Behavioral (${questions.filter(q=>q.category==='behavioral').length})`},
+    {id:'trap',l:`Traps 🎣 (${questions.filter(q=>q.category==='trap').length})`},
+    {id:'pressure',l:`Pressure (${questions.filter(q=>q.category==='pressure').length})`},
   ];
-  const filtered = tab==='all' ? result.questions : result.questions.filter(q=>q.category===tab);
+  const filtered = tab==='all' ? questions : questions.filter(q=>q.category===tab);
   return (
     <div className="card card-wide">
       <div className="qb-header">

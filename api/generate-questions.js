@@ -10,13 +10,19 @@ Analyse the resume and produce a strategic question bank designed to test genuin
 
 TECHNICAL (5-7 questions): Personalised to their exact stack. Probe edge cases, trade-offs, failure modes they'd only know from real use.
 BEHAVIORAL (3-4 questions): STAR-format tied to specific roles and projects in their resume.
-TRAP QUESTIONS (4-5 questions) — MOST CRITICAL:
+TRAP QUESTIONS (4-5 questions) — MOST CRITICAL — set "category": "trap" for ALL of these:
   a) FAKE TOOL TRAP: Invent a plausible-sounding but non-existent tool in their stack. Real experts say "never heard of it." Coached candidates play along.
   b) CONTRADICTION PROBE: Cross-reference two claims in their resume that reveal tension.
   c) SIMPLICITY TEST: "Explain [complex claimed skill] to a non-technical manager in 2 sentences."
   d) SPECIFICITY DRILL: Ask for exact detail only real users know — error messages, config names, default ports.
   e) ACHIEVEMENT DEPTH: If they claim "improved performance by 40%", ask for baseline metric, tool used, and single biggest change.
-PRESSURE FOLLOW-UPS (3-4 questions): Force spontaneous thinking when answers feel scripted.
+PRESSURE FOLLOW-UPS (3-4 questions): Force spontaneous thinking when answers feel scripted. Set "category": "pressure" for these.
+
+CRITICAL RULE for categories:
+- Technical questions → "category": "technical"
+- Behavioral questions → "category": "behavioral"
+- Trap questions (ALL 5 types above) → "category": "trap"  ← MUST be "trap", never "technical"
+- Pressure follow-ups → "category": "pressure"
 
 Respond ONLY with valid JSON, no markdown, no code fences, no explanation outside the JSON:
 {
@@ -154,6 +160,18 @@ module.exports = async (req, res) => {
     }
 
     const result = JSON.parse(match[0]);
+
+    // Normalizer: if trap_type is non-null, category MUST be "trap"
+    // Guards against model ignoring the category rule
+    if (Array.isArray(result.questions)) {
+      result.questions = result.questions.map(q => {
+        if (q.trap_type && q.trap_type !== 'null' && q.trap_type !== null) {
+          return { ...q, category: 'trap' };
+        }
+        return q;
+      });
+    }
+
     return res.status(200).json(result);
 
   } catch (err) {
