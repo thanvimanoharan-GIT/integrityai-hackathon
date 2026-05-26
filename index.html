@@ -806,6 +806,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const lastAutoSwitchRef     = useRef(0);
   const switchSpeakerRef      = useRef(null); // always points to latest switchSpeaker fn
   const isSwitchingRef        = useRef(false); // guards onresult/onend race on speaker switch
+  const interimRef            = useRef('');    // mirrors interim state for sync access in switchSpeaker
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -854,8 +855,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
     sessionFinalRef.current = '';
     rec.onresult = (e) => {
-      // Ignore any late results fired after a speaker switch — they belong to the old session
-      if (isSwitchingRef.current) return;
       let finals = ''; let interimTxt = '';
       // Use e.resultIndex so we only re-scan new results, not the entire accumulated list
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -864,8 +863,9 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
       }
       // Accumulate finals for this session (don't replace — append to what we already have)
       sessionFinalRef.current += finals;
+      interimRef.current = interimTxt;   // sync for switchSpeaker to read without closure-stale issues
       setInterim(interimTxt);
-      setDisplayText(transcriptRef.current + sessionFinalRef.current);
+      setDisplayText(transcriptRef.current + sessionFinalRef.current + interimTxt);
       // Timing: latency to first word + longest mid-answer silence
       if (speakerRef.current === 'candidate') {
         const now = Date.now();
@@ -881,15 +881,13 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
       }
     };
     rec.onend = () => {
-      if (isSwitchingRef.current) {
-        // Speaker switch triggered this stop — commit already done in switchSpeaker,
-        // just clear the flag and any stale interim. Don't add anything to transcript.
-        isSwitchingRef.current = false;
-      } else {
-        // Normal auto-end (browser silence timeout) — commit what we have
+      // Normal auto-end (browser silence timeout) — commit what we have
+      // Speaker switches no longer call rec.stop(), so this only fires on natural end
+      if (sessionFinalRef.current.trim()) {
         transcriptRef.current += sessionFinalRef.current;
       }
       sessionFinalRef.current = '';
+      interimRef.current = '';
       setInterim('');
       setDisplayText(transcriptRef.current);
       if (isRecordingRef.current) setTimeout(startSpeech, 300);
@@ -915,8 +913,18 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
 
   // Toggle speaker — commits current session text, scores candidate turns
   const switchSpeaker = async (spk) => {
-    // Commit any in-progress speech
-    transcriptRef.current += sessionFinalRef.current;
+    // Promote any pending interim FIRST — words spoken right before the click are still "interim"
+    // and would be lost without this. We grab them synchronously via interimRef (not stale state).
+    const pendingInterim = interimRef.current.trim();
+    if (pendingInterim) {
+      sessionFinalRef.current += pendingInterim + ' ';
+      interimRef.current = '';
+      setInterim('');
+    }
+    // Commit whatever is in the current session to the full transcript
+    if (sessionFinalRef.current.trim()) {
+      transcriptRef.current += sessionFinalRef.current;
+    }
     sessionFinalRef.current = '';
     setInterim('');
 
@@ -987,20 +995,26 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
       setCurrentTurnLatency(null);
     }
 
-    const label = spk === 'interviewer' ? '\n[INTERVIEWER]: ' : '\n[CANDIDATE]: ';
-    transcriptRef.current += label;
+    // Only add new speaker label — skip if the previous turn was empty (avoids "[CANDIDATE]: \n[INTERVIEWER]: " blanks)
+    // Check: does the transcript currently end with a label that has nothing after it?
+    const trimmed = transcriptRef.current.trimEnd();
+    const endsWithEmptyLabel = trimmed.endsWith('[INTERVIEWER]:') || trimmed.endsWith('[CANDIDATE]:');
+    if (!endsWithEmptyLabel) {
+      // Previous turn had content — close it and open new label
+      const label = spk === 'interviewer' ? '\n[INTERVIEWER]: ' : '\n[CANDIDATE]: ';
+      transcriptRef.current += label;
+    } else {
+      // Replace the empty label with the new one (don't stack two empty labels)
+      const label = spk === 'interviewer' ? '[INTERVIEWER]: ' : '[CANDIDATE]: ';
+      transcriptRef.current = transcriptRef.current.trimEnd().replace(/\[(?:INTERVIEWER|CANDIDATE)\]:\s*$/, label);
+    }
     speakerRef.current = spk;
     setCurrentSpeaker(spk);
     setDisplayText(transcriptRef.current);
 
-    // Stop current recognition so e.results resets on restart.
-    // isSwitchingRef guards the onresult/onend race: any late onresult events
-    // fired after stop() will be ignored, and onend skips its commit since
-    // switchSpeaker already committed above.
-    if (recRef.current) {
-      isSwitchingRef.current = true;
-      try { recRef.current.stop(); } catch(e) { isSwitchingRef.current = false; }
-    }
+    // KEY: Do NOT call rec.stop() here — stopping causes a 300-500ms gap where all speech is lost.
+    // Instead we keep recognition running continuously and only change the speaker label.
+    // The onresult handler will attribute new finals to the current speakerRef value via transcriptRef.
   };
   // Keep ref in sync so Jitsi event listener always calls the latest closure
   switchSpeakerRef.current = switchSpeaker;
@@ -1081,8 +1095,12 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     isRecordingRef.current = false;
     clearInterval(timerRef.current);
     recRef.current?.stop();
-    transcriptRef.current += sessionFinalRef.current;
+    // Promote any pending interim before final commit
+    const pendingInterim = interimRef.current.trim();
+    if (pendingInterim) sessionFinalRef.current += pendingInterim + ' ';
+    if (sessionFinalRef.current.trim()) transcriptRef.current += sessionFinalRef.current;
     sessionFinalRef.current = '';
+    interimRef.current = '';
     setInterim('');
     setDisplayText(transcriptRef.current);
   };
@@ -1774,63 +1792,4 @@ function App() {
   const monitorSid  = params.get('session') || 'demo';
   const roomId      = params.get('room')    || '';
 
-  if (isMonitor) return <CandidateMonitor sessionId={monitorSid} roomId={roomId} />;
-
-  const [step,         setStep]         = useState('step1');
-  const [loadingStep,  setLoadingStep]  = useState(0);
-  const [loadError,    setLoadError]    = useState('');
-  const [qbResult,     setQbResult]     = useState(null);
-  const [filename,     setFilename]     = useState('');
-  const [role,         setRole]         = useState('');
-  const [company,      setCompany]      = useState('');
-  const [sessionId,    setSessionId]    = useState('');
-  const [resumeText,   setResumeText]   = useState('');
-  const [interviewData,setInterviewData]= useState(null);
-
-  const handleStart = async (file, roleVal, companyVal) => {
-    setLoadError('');
-    setRole(roleVal);
-    setCompany(companyVal);
-    setFilename(file.name);
-    setSessionId(genSessionId());
-    setStep('loading');
-    setLoadingStep(0);
-    try {
-      setLoadingStep(1);
-      const text = await parsePDF(file);
-      setResumeText(text);
-      setLoadingStep(2);
-      const result = await generateQuestions(text, roleVal, companyVal);
-      setLoadingStep(3);
-      setQbResult(result);
-      setStep('step3');
-    } catch (err) {
-      setLoadError(err.message || 'Something went wrong. Please try again.');
-      setStep('step1');
-    }
-  };
-
-  const handleReset = () => {
-    setStep('step1');
-    setQbResult(null);
-    setFilename('');
-    setRole('');
-    setCompany('');
-    setSessionId('');
-    setResumeText('');
-    setInterviewData(null);
-    setLoadError('');
-  };
-
-  if (step === 'step1')    return <Step1 onStart={handleStart} error={loadError} />;
-  if (step === 'loading')  return <Step2 loadingStep={loadingStep} />;
-  if (step === 'step3')    return <Step3 result={qbResult} filename={filename} role={role} company={company} onReset={handleReset} onStartInterview={() => setStep('interview')} />;
-  if (step === 'interview') return <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} onEnd={(data) => { setInterviewData(data); setStep('report'); }} />;
-  if (step === 'report')   return <IntegrityReport result={qbResult} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={handleReset} />;
-  return null;
-}
-
-ReactDOM.render(<App />, document.getElementById('root'));
-    </script>
-  </body>
-</html>
+  if (isM
