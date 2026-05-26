@@ -921,6 +921,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const isSwitchingRef        = useRef(false); // guards onresult/onend race on speaker switch
   const interimRef            = useRef('');    // mirrors interim state for sync access in switchSpeaker
   const candTxLastLenRef      = useRef(0);     // bytes of integrity_candtx_SESSION already consumed
+  const transcriptCursorRef    = useRef(0);   // cursor for signal API transcript chunk polling (cross-machine)
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -952,19 +953,51 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     return () => { try { bc?.close(); } catch(e) {} };
   }, [sessionId]);
 
-  // Cross-machine consent polling — checks signal API every 3s
+  // Cross-machine signal poll — consent + transcript chunks from candidate device (every 2s)
   useEffect(() => {
     const id = setInterval(async () => {
       try {
-        const res = await fetch(`/api/signal?session=${sessionId}`);
+        const cursor = transcriptCursorRef.current;
+        const res = await fetch(`/api/signal?session=${sessionId}&cursor=${cursor}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (data.consent_given) {
-          setConsentReady(true);
-          setConsentAuto(true);
+
+        // Consent
+        if (data.consent_given) { setConsentReady(true); setConsentAuto(true); }
+
+        // Transcript chunks pushed by candidate device via signal API (cross-machine path)
+        if (data.transcript_chunks && data.transcript_chunks.length > 0 && isRecordingRef.current) {
+          transcriptCursorRef.current = data.next_cursor;
+          const newText = data.transcript_chunks.map(c => c.text).join(' ').trim();
+          if (!newText || newText.split(' ').length < 2) return;
+          // Commit any in-progress interviewer speech first
+          if (sessionFinalRef.current.trim()) {
+            transcriptRef.current += sessionFinalRef.current;
+            sessionFinalRef.current = '';
+          }
+          transcriptRef.current += '\n[CANDIDATE]: ' + newText + '\n[INTERVIEWER]: ';
+          speakerRef.current = 'interviewer';
+          setCurrentSpeaker('interviewer');
+          setDisplayText(transcriptRef.current);
+          // Score this candidate turn
+          if (newText.split(' ').length >= 5) {
+            turnCountRef.current += 1;
+            const turnNum = turnCountRef.current;
+            setIsScoring(true);
+            scoreTurn(newText, turnNum, null, null, gazeDeviations).then(result => {
+              setIsScoring(false);
+              if (result && typeof result.suspicion_score === 'number') {
+                setTurnScores(prev => [...prev, {
+                  score: result.suspicion_score, flag: result.flag, note: result.note,
+                  turn: turnNum, latency_ms: null, silence_ms: null, answer_text: newText,
+                }]);
+                setLiveScore(result.suspicion_score);
+              }
+            });
+          }
         }
       } catch {}
-    }, 3000);
+    }, 2000);
     return () => clearInterval(id);
   }, [sessionId]);
 
@@ -2116,6 +2149,13 @@ function CandidateMonitor({ sessionId }) {
           if (e.results[i].isFinal) text += e.results[i][0].transcript + ' ';
         }
         if (text.trim()) {
+          // Primary: signal API — works cross-machine (different devices)
+          fetch('/api/signal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session: sessionId, type: 'transcript_chunk', text: text.trim() })
+          }).catch(() => {});
+          // Fallback: localStorage — works same-machine (two tabs on same browser)
           try {
             const key = 'integrity_candtx_' + sessionId;
             const existing = localStorage.getItem(key) || '';
