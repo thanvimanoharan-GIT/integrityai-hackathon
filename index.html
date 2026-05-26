@@ -907,6 +907,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const speakerRef      = useRef('candidate');
   const timerRef        = useRef(null);
   const recRef          = useRef(null);
+  const watchdogRef     = useRef(null);
   const bcRef           = useRef(null);
   const roomId          = useRef(genRoomId(candidateName));
   const wherebyUrl      = 'https://whereby.com/integrityai?embed&skipMediaPermissionPrompt';
@@ -1090,7 +1091,19 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
       setDisplayText(transcriptRef.current);
       if (isRecordingRef.current) setTimeout(startSpeech, 300);
     };
-    rec.onerror = (e) => { if (e.error==='not-allowed') { alert('Microphone access denied. Please allow microphone access and reload.'); stopRecording(); } };
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed') {
+        alert('Microphone access denied. Please allow microphone access and reload.');
+        stopRecording();
+        return;
+      }
+      // All other errors (network, no-speech, aborted, audio-capture) are recoverable.
+      // onend fires after onerror in most browsers and will restart via the onend handler.
+      // Force restart here as a safety net for browsers where onend doesn't fire.
+      if (isRecordingRef.current) {
+        setTimeout(startSpeech, 600);
+      }
+    };
     recRef.current = rec;
     rec.start();
   };
@@ -1110,6 +1123,15 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     setIvState('recording');
     timerRef.current = setInterval(() => setElapsed(n=>n+1), 1000);
     startSpeech();
+    // Watchdog: if recognizer goes silent for > 10s, force a restart cycle
+    if (watchdogRef.current) clearInterval(watchdogRef.current);
+    watchdogRef.current = setInterval(() => {
+      if (!isRecordingRef.current) { clearInterval(watchdogRef.current); watchdogRef.current = null; return; }
+      // Poke the recognizer — if it's in a dead state abort() will fire onend which restarts it
+      try {
+        if (recRef.current) { recRef.current.abort(); }
+      } catch(_e) {}
+    }, 10000);
   };
 
   // Toggle speaker — commits current session text, scores candidate turns
@@ -1221,6 +1243,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const stopRecording = () => {
     isRecordingRef.current = false;
     clearInterval(timerRef.current);
+    if (watchdogRef.current) { clearInterval(watchdogRef.current); watchdogRef.current = null; }
     recRef.current?.stop();
     // Promote any pending interim before final commit
     const pendingInterim = interimRef.current.trim();
