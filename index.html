@@ -1736,7 +1736,7 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
   const [ivVerdict, setIvVerdict]           = useState(null); // 'hire'|'hold'|'reject'
   const [ivJustification, setIvJustification] = useState('');
   const [decisionLocked, setDecisionLocked] = useState(false);
-  const { transcript, tabSwitches, elapsed, notes, report, injectedTraps } = interviewData;
+  const { transcript, tabSwitches, elapsed, notes, report, injectedTraps, turnScores } = interviewData;
   const s = report?.integrity_score;
   const dateStr = new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
 
@@ -1875,6 +1875,34 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
       {notes?.trim() && <>
         <div className="section-title">📝 Interviewer Notes</div>
         <div className="notes-in-report"><div className="notes-content">{notes}</div></div>
+      </>}
+
+      {/* Per-Turn Live Scores */}
+      {turnScores && turnScores.length > 0 && <>
+        <div className="section-title">📊 Per-Answer Live Scores ({turnScores.length} turns scored)</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:8}}>
+          {turnScores.map((t, i) => {
+            const col = t.score <= 40 ? '#22c55e' : t.score <= 65 ? '#f59e0b' : '#ef4444';
+            const bg  = t.score <= 40 ? '#f0fdf4' : t.score <= 65 ? '#fffbeb' : '#fef2f2';
+            return (
+              <div key={i} style={{background:bg,borderRadius:8,padding:'10px 14px',border:`1px solid ${col}22`}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                  <span style={{fontWeight:600,fontSize:13,color:'#1e293b'}}>Turn {t.turn}</span>
+                  <span style={{fontWeight:700,fontSize:15,color:col}}>{t.score}<span style={{fontWeight:400,fontSize:11,color:'#64748b'}}>/100 suspicion</span></span>
+                </div>
+                {t.flag && t.flag !== 'none' && <div style={{fontSize:11,color:'#64748b',marginBottom:2}}>🚩 {t.flag.replace(/_/g,' ')}</div>}
+                {t.note && <div style={{fontSize:12,color:'#475569',fontStyle:'italic'}}>"{t.note}"</div>}
+                {(t.latency_ms || t.silence_ms) && (
+                  <div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>
+                    {t.latency_ms ? `⏱ Latency: ${(t.latency_ms/1000).toFixed(1)}s` : ''}
+                    {t.latency_ms && t.silence_ms ? ' · ' : ''}
+                    {t.silence_ms ? `Longest silence: ${(t.silence_ms/1000).toFixed(1)}s` : ''}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </>}
 
       {/* Interviewer Decision Input — shown until locked */}
