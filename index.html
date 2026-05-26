@@ -912,8 +912,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const watchdogRef     = useRef(null);
   const bcRef           = useRef(null);
   const roomId          = useRef(genRoomId(candidateName));
-  const wherebyUrl      = 'https://whereby.com/integrityai?embed&skipMediaPermissionPrompt';
-  const wherebyTabUrl   = 'https://whereby.com/integrityai';
+  const wherebyUrl      = 'https://whereby.com/integrityai-demo?embed&skipMediaPermissionPrompt';
+  const wherebyTabUrl   = 'https://whereby.com/integrityai-demo';
   // Auto speaker detection
   const localParticipantIdRef = useRef(null);
   const lastAutoSwitchRef     = useRef(0);
@@ -1969,7 +1969,7 @@ function CandidateMonitor({ sessionId }) {
   const [gazeStatus, setGazeStatus] = useState('CALIBRATING'); // CALIBRATING | OK | AWAY
   const [consented, setConsented]   = useState(false);
   const [bcRef] = useState(() => { try { return new BroadcastChannel('integrity-ai-signals'); } catch(e) { return null; } });
-  const wherebyUrl = 'https://whereby.com/integrityai?embed&skipMediaPermissionPrompt';
+  const wherebyUrl = 'https://whereby.com/integrityai-demo?embed&skipMediaPermissionPrompt';
 
   const tabCountRef    = React.useRef(0);
   const gazeCountRef   = React.useRef(0);
@@ -2188,7 +2188,7 @@ function CandidateMonitor({ sessionId }) {
       </div>
       <div style={{background:'rgba(0,0,0,.3)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 20px',fontSize:11,color:'#64748b',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <span>Video call below — or open in a new tab for full screen</span>
-        <a href="https://whereby.com/integrityai" target="_blank" rel="noopener noreferrer"
+        <a href="https://whereby.com/integrityai-demo" target="_blank" rel="noopener noreferrer"
           style={{color:'#818cf8',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:12}}>
           ↗ Open video call in new tab
         </a>
