@@ -1443,12 +1443,14 @@ function AnalysingScreen({ analyseError }) {
             <div style={{flex:1}}>
               <div style={{fontSize:13,fontWeight:700,color:'#e2e8f0',marginBottom:4}}>Start the video call</div>
               <div style={{fontSize:12,color:'#64748b',marginBottom:14,lineHeight:1.6}}>
-                You and the candidate join the same Whereby room. Open it in a new tab so you join as the <strong style={{color:'#a855f7'}}>host</strong> (you must be logged in to Whereby). The candidate's link already includes the video call — they join automatically.
+                You and the candidate join the same Whereby room. <strong style={{color:'#fbbf24'}}>Before clicking below, log in at whereby.com using the shared <em>IntegrityAI</em> account credentials.</strong> The candidate's link already includes the video call — they join automatically.
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                 <div style={{background:'rgba(99,102,241,.07)',border:'1px solid rgba(99,102,241,.25)',borderRadius:10,padding:'16px 18px'}}>
                   <div style={{fontSize:11,fontWeight:700,letterSpacing:'.6px',color:'#6366f1',marginBottom:8,textTransform:'uppercase'}}>👤 You — Interviewer</div>
-                  <div style={{fontSize:12,color:'#94a3b8',marginBottom:12,lineHeight:1.5}}>Click below to open the call in a new tab. Because you're logged into Whereby, you'll enter as <strong style={{color:'#e2e8f0'}}>host</strong> — no waiting room.</div>
+                  <div style={{background:'rgba(234,179,8,.08)',border:'1px solid rgba(234,179,8,.3)',borderRadius:6,padding:'8px 10px',marginBottom:10,fontSize:11,color:'#fbbf24',lineHeight:1.6}}>
+                    <strong>Pre-flight:</strong> Open <a href="https://whereby.com/user/login" target="_blank" rel="noopener noreferrer" style={{color:'#fbbf24',textDecoration:'underline'}}>whereby.com/user/login</a> in a new tab and sign in with the shared <strong>IntegrityAI</strong> account. Then click below — you'll enter as host with no waiting room.
+                  </div>
                   <a href={wherebyTabUrl} target="_blank" rel="noopener noreferrer"
                     style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 16px',background:'linear-gradient(135deg,#6366f1,#a855f7)',color:'white',borderRadius:8,fontWeight:700,fontSize:13,textDecoration:'none',boxShadow:'0 0 16px rgba(99,102,241,.35)'}}>
                     📹 Open Call as Host
@@ -1557,7 +1559,7 @@ function AnalysingScreen({ analyseError }) {
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
                 gap:10,padding:'18px 16px',background:'#0d0f14',minHeight:160}}>
                 <div style={{fontSize:11,color:'#fbbf24',marginBottom:2,textAlign:'center'}}>
-                  ⚠️ Log into <a href="https://whereby.com/user/login" target="_blank" rel="noopener noreferrer" style={{color:'#fbbf24'}}>whereby.com</a> first — or you'll see "waiting for host"
+                  ⚠️ Not joined yet? Log into <a href="https://whereby.com/user/login" target="_blank" rel="noopener noreferrer" style={{color:'#fbbf24',textDecoration:'underline'}}>whereby.com</a> with the shared <strong>IntegrityAI</strong> account first
                 </div>
                 <a href={wherebyTabUrl} target="_blank" rel="noopener noreferrer"
                   style={{display:'inline-flex',alignItems:'center',gap:8,padding:'10px 22px',
