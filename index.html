@@ -1048,6 +1048,17 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
 
   const startSpeech = () => {
     if (!isRecordingRef.current) return;
+    // Abort any existing recognizer before creating a new one.
+    // This prevents double-restart: onerror schedules restart at 600ms,
+    // onend fires right after and schedules at 300ms — without this guard
+    // two recognizers run simultaneously and duplicate every word.
+    try {
+      if (recRef.current) {
+        recRef.current.onend = null;   // prevent the dying recognizer from triggering another restart
+        recRef.current.onerror = null;
+        recRef.current.abort();
+      }
+    } catch(_e) {}
     const hasSR = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     if (!hasSR) return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
