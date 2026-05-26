@@ -1511,8 +1511,26 @@ function AnalysingScreen({ analyseError }) {
                   🤖 AUTO SPEAKER DETECT
                 </span>
               </div>
-              {/* Whereby video opens in separate tab — use speaker buttons above */}
-              <div  className="video-frame" style={{background:'#0d0f14',overflow:'hidden'}} />
+              {/* Whereby — interviewer opens in separate tab */}
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                gap:10,padding:'18px 16px',background:'#0d0f14',minHeight:160}}>
+                <a href={wherebyTabUrl} target="_blank" rel="noopener noreferrer"
+                  style={{display:'inline-flex',alignItems:'center',gap:8,padding:'10px 22px',
+                    background:'linear-gradient(135deg,#6366f1,#a855f7)',color:'white',borderRadius:8,
+                    fontWeight:700,fontSize:13,textDecoration:'none',boxShadow:'0 0 18px rgba(99,102,241,.4)'}}>
+                  📹 Open / Rejoin Call as Host
+                </a>
+                <div style={{fontSize:11,color:'#475569',textAlign:'center',lineHeight:1.5}}>
+                  Keep <strong style={{color:'#64748b'}}>this tab</strong> open for transcription.<br/>
+                  Snap video window beside it.
+                </div>
+                {gazeDeviations > 0 && (
+                  <div style={{background:'rgba(249,115,22,.1)',border:'1px solid rgba(249,115,22,.3)',
+                    borderRadius:6,padding:'3px 10px',fontSize:11,color:'#fb923c',fontWeight:700}}>
+                    👁 Gaze Away: {gazeDeviations}x
+                  </div>
+                )}
+              </div>
             </div>
             <div className="transcript-card">
               <div className="transcript-label">
