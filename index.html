@@ -903,6 +903,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
 
   const isRecordingRef  = useRef(false);
   const [micActive, setMicActive] = useState(false);  // true = recognizer currently listening
+  const micActiveRef    = useRef(false);              // mirrors micActive for use inside closures
   const transcriptRef   = useRef('');
   const sessionFinalRef = useRef('');
   const speakerRef      = useRef('candidate');
@@ -1094,7 +1095,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     rec.onend = () => {
       // Normal auto-end (browser silence timeout) — commit what we have
       // Speaker switches no longer call rec.stop(), so this only fires on natural end
-      setMicActive(false);
+      micActiveRef.current = false; setMicActive(false);
       if (sessionFinalRef.current.trim()) {
         transcriptRef.current += sessionFinalRef.current;
       }
@@ -1119,7 +1120,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     };
     recRef.current = rec;
     rec.start();
-    setMicActive(true);
+    micActiveRef.current = true; setMicActive(true);
   };
 
   const startRecording = () => {
@@ -1145,7 +1146,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
       const lastActivity = lastSpeechEventRef.current || 0;
       const silentMs = Date.now() - lastActivity;
       // Only restart if silent for > 15s AND mic is showing inactive — avoids cutting off live speech
-      if (silentMs > 15000 && !micActive) {
+      // Use micActiveRef (not micActive state) — state is stale inside setInterval closure
+      if (silentMs > 15000 && !micActiveRef.current) {
         try { if (recRef.current) recRef.current.abort(); } catch(_e) {}
       }
     }, 5000);
