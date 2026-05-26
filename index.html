@@ -583,7 +583,7 @@ async function scoreInterview(payload) {
   return res.json();
 }
 
-async function scoreTurn(answerText, turnNumber, latencyMs, longestSilenceMs) {
+async function scoreTurn(answerText, turnNumber, latencyMs, longestSilenceMs, gazeDeviationsCount) {
   try {
     const res = await fetch('/api/score-turn', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -592,6 +592,7 @@ async function scoreTurn(answerText, turnNumber, latencyMs, longestSilenceMs) {
         turn_number: turnNumber,
         latency_ms: latencyMs != null ? Math.round(latencyMs) : null,
         longest_silence_ms: longestSilenceMs != null ? Math.round(longestSilenceMs) : null,
+        gaze_deviations: gazeDeviationsCount || 0,
       }),
     });
     if (!res.ok) return null;
@@ -874,6 +875,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const [displayText, setDisplayText]       = useState('');
   const [interim, setInterim]               = useState('');
   const [candidateTabSwitches, setCandidateTabSwitches] = useState(0);
+  const [gazeDeviations, setGazeDeviations]             = useState(0);
+  const remoteGazeCountRef = useRef(0);
   const [currentSpeaker, setCurrentSpeaker] = useState('candidate');
   const [turnScores, setTurnScores]         = useState([]); // [{score, flag, note}]
   const [liveScore, setLiveScore]           = useState(null);
@@ -928,6 +931,14 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           if (e.data.type === 'tab_switch' || e.data.type === 'window_blur') {
             setCandidateTabSwitches(n => n + 1);
           }
+          if (e.data.type === 'gaze_deviation') {
+            const newCount = e.data.count || (remoteGazeCountRef.current + 1);
+            if (newCount > remoteGazeCountRef.current) {
+              const delta = newCount - remoteGazeCountRef.current;
+              remoteGazeCountRef.current = newCount;
+              setGazeDeviations(prev => prev + delta);
+            }
+          }
           if (e.data.type === 'consent_given') {
             setConsentReady(true);
             setConsentAuto(true);
@@ -961,6 +972,16 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     const pollId = setInterval(() => {
       if (!isRecordingRef.current) return;
       try {
+        // Read gaze deviations reported by candidate device
+        const gazeKey = 'integrity_gaze_' + sessionId;
+        const remoteGaze = parseInt(localStorage.getItem(gazeKey) || '0', 10);
+        if (remoteGaze > remoteGazeCountRef.current) {
+          const delta = remoteGaze - remoteGazeCountRef.current;
+          remoteGazeCountRef.current = remoteGaze;
+          setGazeDeviations(prev => prev + delta);
+        }
+      } catch {}
+      try {
         const key = 'integrity_candtx_' + sessionId;
         const full = localStorage.getItem(key) || '';
         if (full.length <= candTxLastLenRef.current) return;
@@ -984,7 +1005,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           turnCountRef.current += 1;
           const turnNum = turnCountRef.current;
           setIsScoring(true);
-          scoreTurn(newText, turnNum, null, null).then(result => {
+          scoreTurn(newText, turnNum, null, null, gazeDeviations).then(result => {
             setIsScoring(false);
             if (result && typeof result.suspicion_score === 'number') {
               setTurnScores(prev => {
@@ -1120,7 +1141,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         const turnNum = turnCountRef.current;
         const capturedTurnText = turnText; // capture for trap use
         setIsScoring(true);
-        scoreTurn(turnText, turnNum, capturedLatency, capturedSilence).then(result => {
+        scoreTurn(turnText, turnNum, capturedLatency, capturedSilence, gazeDeviations).then(result => {
           setIsScoring(false);
           if (result && typeof result.suspicion_score === 'number') {
             setTurnScores(prev => {
@@ -1241,7 +1262,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         interviewer_notes: notes,
         resume_text: resumeText || '',
       });
-      onEnd({ transcript: fullTranscript, candidateTranscript: candidateText, tabSwitches: candidateTabSwitches, elapsed, notes, report, turnScores, injectedTraps });
+      onEnd({ transcript: fullTranscript, candidateTranscript: candidateText, tabSwitches: candidateTabSwitches, gazeDeviations, elapsed, notes, report, turnScores, injectedTraps });
     } catch (err) {
       setAnalyseError('Analysis failed: ' + err.message + ' — check your internet connection and try again.');
       setIvState('report-error');

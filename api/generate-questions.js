@@ -1,7 +1,7 @@
 /**
  * IntegrityAI — Smart Question Engine
  * Vercel Serverless Function — Groq API / Llama 3
- * VERSION: VERCEL-1
+ * VERSION: VERCEL-2
  */
 
 const QUESTION_GEN_PROMPT = `You are IntegrityAI's Smart Question Engine — an expert technical interviewer specialising in detecting AI-assisted interview cheating.
@@ -78,27 +78,15 @@ module.exports = async (req, res) => {
     try {
       const testRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: "Say hello in one word." }],
-          max_tokens: 10
-        })
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: "Say hello in one word." }], max_tokens: 10 })
       });
       const testData = await testRes.json();
       groqTest = { http_status: testRes.status, ok: testRes.ok, raw_response: testData };
     } catch (e) {
       groqTest = { error: e.message };
     }
-    return res.status(200).json({
-      version: "VERCEL-1",
-      key_set: apiKey.length > 0,
-      key_prefix: apiKey.substring(0, 7),
-      groq_test: groqTest
-    });
+    return res.status(200).json({ version: "VERCEL-2", key_set: apiKey.length > 0, key_prefix: apiKey.substring(0, 7), groq_test: groqTest });
   }
 
   if (req.method !== "POST") {
@@ -109,12 +97,10 @@ module.exports = async (req, res) => {
     const { resume_text } = req.body;
 
     if (!resume_text || resume_text.trim().length < 80) {
-      return res.status(400).json({
-        detail: "Resume text is too short. Please upload a proper PDF."
-      });
+      return res.status(400).json({ detail: "Resume text is too short. Please upload a proper PDF." });
     }
 
-    // Guard against non-resume content — prevents AI hallucination on garbage input
+    // Guard against non-resume content
     const lower = resume_text.toLowerCase();
     const resumeSignals = [
       'experience','education','skill','work','job','university','college',
@@ -125,25 +111,17 @@ module.exports = async (req, res) => {
     ];
     const hits = resumeSignals.filter(w => lower.includes(w)).length;
     if (hits < 3) {
-      return res.status(400).json({
-        detail: "This file doesn't appear to be a resume or CV. Please upload the candidate's actual resume PDF."
-      });
+      return res.status(400).json({ detail: "This file doesn't appear to be a resume or CV. Please upload the candidate's actual resume PDF." });
     }
 
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({
-        detail: "GROQ_API_KEY not set in Vercel environment variables."
-      });
+      return res.status(500).json({ detail: "GROQ_API_KEY not set in Vercel environment variables." });
     }
 
-    // Call Groq API (free tier — Llama 3 70B)
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         messages: [{ role: "user", content: QUESTION_GEN_PROMPT + resume_text }],
@@ -163,8 +141,27 @@ module.exports = async (req, res) => {
 
     const rawText = groqData.choices[0].message.content;
 
-    // Extract JSON from response
     const match = rawText.match(/\{[\s\S]*\}/);
     if (!match) {
-      return res.status(500).json({
-        detail: "Unexpected response format. Please
+      return res.status(500).json({ detail: "Unexpected response format. Please try again." });
+    }
+
+    const result = JSON.parse(match[0]);
+
+    // Normaliser: force category='trap' on any question with non-null trap_type
+    // Guards against model returning trap questions tagged as 'technical', breaking the Traps tab
+    if (Array.isArray(result.questions)) {
+      result.questions = result.questions.map(q => {
+        if (q.trap_type && q.trap_type !== 'null' && q.trap_type !== null) {
+          return { ...q, category: 'trap' };
+        }
+        return q;
+      });
+    }
+
+    return res.status(200).json(result);
+
+  } catch (err) {
+    return res.status(500).json({ detail: err.message });
+  }
+};

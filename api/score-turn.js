@@ -56,7 +56,7 @@ module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ detail: "Method not allowed" });
 
   try {
-    const { answer_text, turn_number, latency_ms, longest_silence_ms } = req.body;
+    const { answer_text, turn_number, latency_ms, longest_silence_ms, gaze_deviations } = req.body;
 
     if (!answer_text || answer_text.trim().length < 5) {
       return res.status(200).json({ suspicion_score: 0, flag: "none", note: "Too short to score." });
@@ -65,15 +65,18 @@ module.exports = async (req, res) => {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) return res.status(500).json({ detail: "GROQ_API_KEY not set." });
 
-    // Build timing context string
-    let timingContext = '';
+    // Build context string: timing + gaze
+    let contextStr = '';
     if (latency_ms != null || longest_silence_ms != null) {
       const latSec = latency_ms != null ? (latency_ms / 1000).toFixed(1) : null;
       const silSec = longest_silence_ms != null ? (longest_silence_ms / 1000).toFixed(1) : null;
-      timingContext = `\nTIMING DATA: Response latency = ${latSec != null ? latSec + 's' : 'unknown'} | Longest mid-answer silence = ${silSec != null ? silSec + 's' : 'unknown'}`;
+      contextStr += `\nTIMING DATA: Response latency = ${latSec != null ? latSec + 's' : 'unknown'} | Longest mid-answer silence = ${silSec != null ? silSec + 's' : 'unknown'}`;
+    }
+    if (gaze_deviations != null && gaze_deviations > 0) {
+      contextStr += `\nGAZE DATA: Candidate looked away from screen ${gaze_deviations} time(s) during this answer — may indicate reading from external source.`;
     }
 
-    const userContent = `Turn ${turn_number || '?'} — Candidate answer:\n\n${answer_text.substring(0, 800)}${timingContext}`;
+    const userContent = `Turn ${turn_number || '?'} — Candidate answer:\n\n${answer_text.substring(0, 800)}${contextStr}`;
 
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -99,12 +102,4 @@ module.exports = async (req, res) => {
 
     const rawText = groqData.choices[0].message.content;
     const match = rawText.match(/\{[\s\S]*\}/);
-    if (!match) return res.status(200).json({ suspicion_score: 30, flag: "none", note: "Could not parse response." });
-
-    const result = JSON.parse(match[0]);
-    return res.status(200).json(result);
-
-  } catch (err) {
-    return res.status(500).json({ detail: err.message });
-  }
-};
+    if (!match) return res.status(200).jso
