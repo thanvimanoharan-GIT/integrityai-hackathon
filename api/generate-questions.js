@@ -41,9 +41,21 @@ Respond ONLY with valid JSON, no markdown, no code fences, no explanation outsid
       "follow_up": "Probing follow-up"
     }
   ],
-  "interviewer_tips": "2-3 sentence strategy note"
+  "interviewer_tips": "2-3 sentence strategy note",
+  "career_analysis": {
+    "total_companies": 3,
+    "average_tenure_months": 18,
+    "job_hopping_risk": "low|medium|high",
+    "project_continuity_risk": "low|medium|high",
+    "job_hopping_summary": "1-sentence summary of career stability",
+    "career_gaps": [
+      {"period": "Jan 2022 - Apr 2022", "duration_months": 3, "note": "optional context"}
+    ],
+    "overall_career_red_flags": ["list of specific red flags or empty array"]
+  }
 }
 trap_type values: fake_tool | contradiction | simplicity | specificity | achievement_depth | null
+career_analysis: calculate from employment dates in resume. job_hopping_risk = high if avg tenure < 12mo, medium if < 18mo, low otherwise.
 
 RESUME TO ANALYSE:
 `;
@@ -155,26 +167,4 @@ module.exports = async (req, res) => {
     const match = rawText.match(/\{[\s\S]*\}/);
     if (!match) {
       return res.status(500).json({
-        detail: "Unexpected response format. Please try again."
-      });
-    }
-
-    const result = JSON.parse(match[0]);
-
-    // Normalizer: if trap_type is non-null, category MUST be "trap"
-    // Guards against model ignoring the category rule
-    if (Array.isArray(result.questions)) {
-      result.questions = result.questions.map(q => {
-        if (q.trap_type && q.trap_type !== 'null' && q.trap_type !== null) {
-          return { ...q, category: 'trap' };
-        }
-        return q;
-      });
-    }
-
-    return res.status(200).json(result);
-
-  } catch (err) {
-    return res.status(500).json({ detail: err.message });
-  }
-};
+        detail: "Unexpected response format. Please
