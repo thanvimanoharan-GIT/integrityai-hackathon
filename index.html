@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IntegrityAI — Interview Authenticity Detector</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://meet.jit.si/external_api.js"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+  <!-- Whereby video call — no external JS needed, pure iframe embed -->
   <style>
     /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -187,7 +189,7 @@
     .iv-left { display: flex; flex-direction: column; gap: 14px; }
     .video-card { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; overflow: hidden; }
     .video-label { font-size: 11px; font-weight: 700; letter-spacing: .7px; color: #94a3b8; padding: 12px 18px 0; }
-    .jitsi-frame { width: 100%; height: 360px; border: none; display: block; }
+    .video-frame { width: 100%; height: 360px; border: none; display: block; }
     .transcript-card { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; padding: 20px; }
     .transcript-label { font-size: 11px; font-weight: 700; letter-spacing: .7px; color: #94a3b8; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
     .rec-live { font-size: 11px; color: #ef4444; display: flex; align-items: center; gap: 5px; }
@@ -412,6 +414,20 @@
     .transcript-full { padding: 0 18px 18px; font-size: 13px; color: #64748b; line-height: 1.85; max-height: 300px; overflow-y: auto; }
 
     .report-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid #1e2330; }
+    .career-analysis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 10px 0 14px; }
+    .ca-stat { background: #1a1f2e; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; padding: 14px 10px; text-align: center; }
+    .ca-stat-val { font-size: 20px; font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
+    .ca-stat-lbl { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+    .ca-summary { font-size: 13px; color: #94a3b8; background: rgba(99,102,241,.08); border-left: 3px solid #6366f1; border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 6px 0; }
+    .ca-gaps-section, .ca-redflags { background: #1a1f2e; border: 1px solid rgba(245,158,11,.2); border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
+    .ca-gaps-title { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+    .ca-gap-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 13px; }
+    .ca-gap-period { color: #e2e8f0; font-weight: 600; min-width: 140px; }
+    .ca-gap-dur { background: rgba(245,158,11,.15); color: #f59e0b; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+    .ca-gap-note { color: #94a3b8; font-size: 12px; }
+    .ca-redflags { border-color: rgba(239,68,68,.2); }
+    .ca-redflag-row { font-size: 13px; color: #fca5a5; padding: 4px 0; }
+    @media (max-width: 600px) { .career-analysis-grid { grid-template-columns: repeat(2, 1fr); } }
 
     /* ── Print Styles ── */
     @media print {
@@ -436,14 +452,41 @@
     ::-webkit-scrollbar-track { background: #0d0f14; }
     ::-webkit-scrollbar-thumb { background: #1e2330; border-radius: 3px; }
   </style>
+<script>
+  window.onerror = function(msg, src, line) {
+    var el = document.getElementById('status-msg');
+    if (el) el.innerHTML = '<span style="color:#f87171">❌ JS Error: ' + msg + ' (line ' + line + ')</span>';
+    return false;
+  };
+</script>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <div id="fallback" style="position:fixed;top:0;left:0;right:0;bottom:0;background:#0d0f14;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;">
+    <div style="font-size:36px;margin-bottom:16px;">🛡️</div>
+    <div style="color:#e2e8f0;font-size:18px;font-weight:700;">IntegrityAI</div>
+    <div id="status-msg" style="color:#64748b;font-size:13px;margin-top:10px;">Loading scripts…</div>
+  </div>
+  <div id="pre-react-loader" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;color:#94a3b8;">
+    <div style="font-size:32px;margin-bottom:12px;">🛡️</div>
+    <div style="font-size:16px;font-weight:600;color:#e2e8f0;">IntegrityAI</div>
+    <div style="font-size:13px;margin-top:8px;">Loading…</div>
+  </div>
+</div>
+<script>
+  window.addEventListener('error', function(e) {
+    document.getElementById('pre-react-loader') && (document.getElementById('pre-react-loader').innerHTML =
+      '<div style="color:#f87171;font-size:13px;max-width:600px;padding:20px;text-align:center"><strong>JS Error:</strong><br>' + e.message + '<br><small>' + (e.filename||'') + ':' + (e.lineno||'') + '</small></div>');
+  });
+</script>
 <script type="text/babel">
 const { useState, useRef, useCallback, useEffect } = React;
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// Guard: pdf.js may fail to load from CDN — don't crash the whole script
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TRAP_LABELS = {
@@ -454,7 +497,34 @@ const TRAP_LABELS = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function parsePDF(file) {
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+  // Try progressively more lenient pdf.js options for non-standard PDFs
+  const attempts = [
+    { data: buf, verbosity: 0 },
+    { data: buf, verbosity: 0, isEvalSupported: false, useSystemFonts: true },
+    { data: buf, verbosity: 0, isEvalSupported: false, disableFontFace: true, useSystemFonts: true },
+  ];
+
+  let pdf = null;
+  let lastErr = null;
+  for (const opts of attempts) {
+    try {
+      pdf = await pdfjsLib.getDocument(opts).promise;
+      break;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  if (!pdf) {
+    const msg = lastErr?.message || 'Unknown PDF error';
+    // Common non-standard PDF — give actionable guidance
+    throw new Error(
+      `Could not parse this PDF (${msg}). ` +
+      'Please re-export it as PDF from Word, Google Docs, or Adobe Acrobat and try again.'
+    );
+  }
+
   let text = '';
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
@@ -743,6 +813,45 @@ function Step3({ result, filename, role, company, onReset, onStartInterview }) {
       </div>
       {result.candidate_summary && <div className="summary-box"><div className="summary-label">CANDIDATE PROFILE</div><div className="summary-text">{result.candidate_summary}</div></div>}
       {result.risk_flags?.length > 0 && (<><div className="risk-title">⚠ CLAIMS TO PROBE CLOSELY</div><div className="risk-flags">{result.risk_flags.map((f,i)=><div key={i} className="risk-flag">{f}</div>)}</div></>)}
+      {result.career_analysis && (
+        <div style={{background:'#12151d',border:'1px solid #1e2330',borderRadius:12,padding:'16px 18px',margin:'12px 0'}}>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:'.7px',color:'#f59e0b',marginBottom:12}}>📅 CAREER RISK ANALYSIS</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:10,marginBottom:10}}>
+            <div style={{background:'#0d0f14',borderRadius:8,padding:'8px 14px',minWidth:100}}>
+              <div style={{fontSize:10,color:'#64748b',marginBottom:2}}>COMPANIES</div>
+              <div style={{fontSize:18,fontWeight:700,color:'#e2e8f0'}}>{result.career_analysis.total_companies||'?'}</div>
+            </div>
+            <div style={{background:'#0d0f14',borderRadius:8,padding:'8px 14px',minWidth:100}}>
+              <div style={{fontSize:10,color:'#64748b',marginBottom:2}}>AVG TENURE</div>
+              <div style={{fontSize:18,fontWeight:700,color:'#e2e8f0'}}>{result.career_analysis.average_tenure_months ? result.career_analysis.average_tenure_months+'mo' : '?'}</div>
+            </div>
+            <div style={{background:'#0d0f14',borderRadius:8,padding:'8px 14px',minWidth:120}}>
+              <div style={{fontSize:10,color:'#64748b',marginBottom:2}}>JOB HOPPING</div>
+              <div style={{fontSize:14,fontWeight:700,color:result.career_analysis.job_hopping_risk==='high'?'#ef4444':result.career_analysis.job_hopping_risk==='medium'?'#f59e0b':'#10b981'}}>{(result.career_analysis.job_hopping_risk||'LOW').toUpperCase()}</div>
+            </div>
+            <div style={{background:'#0d0f14',borderRadius:8,padding:'8px 14px',minWidth:120}}>
+              <div style={{fontSize:10,color:'#64748b',marginBottom:2}}>PROJECT CONTINUITY</div>
+              <div style={{fontSize:14,fontWeight:700,color:result.career_analysis.project_continuity_risk==='high'?'#ef4444':result.career_analysis.project_continuity_risk==='medium'?'#f59e0b':'#10b981'}}>{(result.career_analysis.project_continuity_risk||'LOW').toUpperCase()}</div>
+            </div>
+          </div>
+          {result.career_analysis.job_hopping_summary && <div style={{fontSize:12,color:'#94a3b8',marginBottom:8}}>🔁 {result.career_analysis.job_hopping_summary}</div>}
+          {result.career_analysis.career_gaps?.length > 0 && (
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#f59e0b',marginBottom:6}}>CAREER GAPS DETECTED</div>
+              {result.career_analysis.career_gaps.map((g,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#cbd5e1',marginBottom:4}}>
+                  <span style={{background:'rgba(245,158,11,.15)',border:'1px solid rgba(245,158,11,.3)',borderRadius:4,padding:'2px 6px',fontSize:11,fontWeight:700,color:'#f59e0b'}}>{g.duration_months}mo</span>
+                  <span>{g.period}{g.note?' — '+g.note:''}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {result.career_analysis.overall_career_red_flags?.length > 0
+            ? result.career_analysis.overall_career_red_flags.map((f,i)=><div key={i} style={{fontSize:12,color:'#fca5a5',marginBottom:2}}>• {f}</div>)
+            : <div style={{fontSize:12,color:'#10b981'}}>✓ No career red flags detected</div>
+          }
+        </div>
+      )}
       <div className="category-tabs">{tabs.map(t=><button key={t.id} className={`cat-tab t-${t.id} ${tab===t.id?'on':''}`} onClick={()=>setTab(t.id)}>{t.l}</button>)}</div>
       <div className="q-list">{filtered.map((q,i)=><QuestionCard key={q.id||i} q={q} idx={result.questions.indexOf(q)} />)}</div>
       {result.interviewer_tips && <div className="tips-box"><div className="tips-lbl">💡 INTERVIEWER STRATEGY</div><div className="tips-txt">{result.interviewer_tips}</div></div>}
@@ -797,11 +906,9 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const recRef          = useRef(null);
   const bcRef           = useRef(null);
   const roomId          = useRef(genRoomId(candidateName));
-  const jitsiUrl        = `https://meet.jit.si/${roomId.current}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.enableLobby=false&config.disableKnocking=true&config.requireDisplayName=false&config.startWithVideoMuted=false&config.startWithAudioMuted=false&config.disableModeratorIndicator=true&config.enableWelcomePage=false&config.disableProfile=true`;
-  const jitsiTabUrl     = `https://meet.jit.si/${roomId.current}`;
+  const wherebyUrl      = 'https://whereby.com/integrityai?embed&skipMediaPermissionPrompt';
+  const wherebyTabUrl   = 'https://whereby.com/integrityai';
   // Auto speaker detection
-  const jitsiApiRef           = useRef(null);
-  const jitsiContainerRef     = useRef(null);
   const localParticipantIdRef = useRef(null);
   const lastAutoSwitchRef     = useRef(0);
   const switchSpeakerRef      = useRef(null); // always points to latest switchSpeaker fn
@@ -1089,80 +1196,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     // Instead we keep recognition running continuously and only change the speaker label.
     // The onresult handler will attribute new finals to the current speakerRef value via transcriptRef.
   };
-  // Keep ref in sync so Jitsi event listener always calls the latest closure
-  switchSpeakerRef.current = switchSpeaker;
-
-  // Auto-speaker detection: init Jitsi IFrame API when recording starts
-  React.useEffect(() => {
-    if (ivState !== 'recording') return;
-    if (!window.JitsiMeetExternalAPI) {
-      console.warn('Jitsi IFrame API not loaded — auto-speaker detection unavailable');
-      return;
-    }
-    if (!jitsiContainerRef.current) return;
-
-    // Clean up any previous instance
-    if (jitsiApiRef.current) {
-      try { jitsiApiRef.current.dispose(); } catch(e) {}
-      jitsiApiRef.current = null;
-    }
-
-    try {
-      const api = new window.JitsiMeetExternalAPI('meet.jit.si', {
-        roomName: roomId.current,
-        parentNode: jitsiContainerRef.current,
-        userInfo: { displayName: 'Interviewer' },
-        width: '100%',
-        height: '100%',
-        configOverwrite: {
-          prejoinPageEnabled: false,
-          lobby: { enabled: false },
-          enableLobby: false,
-          disableKnocking: true,
-          requireDisplayName: false,
-          startWithVideoMuted: false,
-          startWithAudioMuted: false,
-          disableModeratorIndicator: true,
-          enableWelcomePage: false,
-          disableProfile: true,
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_WATERMARK_FOR_GUESTS: false,
-          TOOLBAR_BUTTONS: ['microphone','camera','hangup','tileview','settings'],
-        },
-      });
-
-      // Capture our own participant ID when we join
-      api.addEventListener('videoConferenceJoined', ({ id }) => {
-        localParticipantIdRef.current = id;
-      });
-
-      // Auto-switch speaker based on who Jitsi says is dominant
-      api.addEventListener('dominantSpeakerChanged', ({ id }) => {
-        if (!isRecordingRef.current || !localParticipantIdRef.current) return;
-        const now = Date.now();
-        if (now - lastAutoSwitchRef.current < 1500) return; // debounce: ignore rapid fires
-        const newSpeaker = (id === localParticipantIdRef.current) ? 'interviewer' : 'candidate';
-        if (newSpeaker !== speakerRef.current && switchSpeakerRef.current) {
-          lastAutoSwitchRef.current = now;
-          switchSpeakerRef.current(newSpeaker);
-        }
-      });
-
-      jitsiApiRef.current = api;
-    } catch(err) {
-      console.warn('Jitsi IFrame API init error:', err);
-    }
-
-    return () => {
-      if (jitsiApiRef.current) {
-        try { jitsiApiRef.current.dispose(); } catch(e) {}
-        jitsiApiRef.current = null;
-        localParticipantIdRef.current = null;
-      }
-    };
-  }, [ivState]);
 
   const stopRecording = () => {
     isRecordingRef.current = false;
@@ -1347,13 +1380,13 @@ function AnalysingScreen({ analyseError }) {
             <div style={{flex:1}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
                 <div style={{fontSize:13,fontWeight:700,color:'#e2e8f0'}}>Video call — confirm candidate is visible</div>
-                <a href={jitsiTabUrl} target="_blank" rel="noreferrer"
+                <a href={wherebyTabUrl} target="_blank" rel="noreferrer"
                   style={{fontSize:11,fontWeight:700,color:'#6366f1',background:'rgba(99,102,241,.12)',padding:'4px 10px',borderRadius:6,textDecoration:'none',border:'1px solid rgba(99,102,241,.3)'}}>
                   ↗ Open in new tab
                 </a>
               </div>
               <div style={{borderRadius:8,overflow:'hidden',border:'1px solid #1e2330'}}>
-                <iframe src={jitsiUrl} style={{width:'100%',height:280,border:'none',display:'block'}}
+                <iframe src={wherebyUrl} style={{width:'100%',height:280,border:'none',display:'block'}}
                   allow="camera *; microphone *; fullscreen *; display-capture *; screen-wake-lock *" allowFullScreen />
               </div>
               <div style={{fontSize:11,color:'#475569',marginTop:6}}>
@@ -1429,7 +1462,7 @@ function AnalysingScreen({ analyseError }) {
                 );
               })()}
               {!isScoring && turnScores.length === 0 &&
-                <div className="susp-hint">Speaker auto-detected via Jitsi · scored when candidate turn ends · click buttons above to override</div>}
+                <div className="susp-hint">Scored when candidate turn ends · click buttons above to override</div>}
             </div>
           </div>
         );
@@ -1447,8 +1480,8 @@ function AnalysingScreen({ analyseError }) {
                   🤖 AUTO SPEAKER DETECT
                 </span>
               </div>
-              {/* Jitsi IFrame API mounts here — auto speaker detection via dominantSpeakerChanged */}
-              <div ref={jitsiContainerRef} className="jitsi-frame" style={{background:'#0d0f14',overflow:'hidden'}} />
+              {/* Whereby video opens in separate tab — use speaker buttons above */}
+              <div  className="video-frame" style={{background:'#0d0f14',overflow:'hidden'}} />
             </div>
             <div className="transcript-card">
               <div className="transcript-label">
@@ -1463,7 +1496,7 @@ function AnalysingScreen({ analyseError }) {
                 <button className={`spk-btn spk-btn-candidate ${currentSpeaker==='candidate'?'active':''}`}
                   onClick={()=>switchSpeaker('candidate')}>👤 Candidate</button>
                 <span style={{fontSize:10,color:'#6366f1',marginLeft:4,fontWeight:600}}>
-                  {jitsiApiRef.current ? '🤖 Auto-detecting · click to override' : 'Click when speaker changes'}
+                  {'Click when speaker changes'}
                 </span>
               </div>
               <div className="transcript-body">
@@ -1806,28 +1839,152 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
 
 // ── Candidate Monitor Page ────────────────────────────────────────────────────
 // Shown when candidate opens ?monitor=1&session=SESSION_ID
-function CandidateMonitor({ sessionId, roomId }) {
-  const [tabCount, setTabCount]   = useState(0);
-  const [consented, setConsented] = useState(false);
+function CandidateMonitor({ sessionId }) {
+  const [tabCount, setTabCount]     = useState(0);
+  const [gazeCount, setGazeCount]   = useState(0);
+  const [gazeStatus, setGazeStatus] = useState('CALIBRATING'); // CALIBRATING | OK | AWAY
+  const [consented, setConsented]   = useState(false);
   const [bcRef] = useState(() => { try { return new BroadcastChannel('integrity-ai-signals'); } catch(e) { return null; } });
-  const candRecRef    = useRef(null);  // Web Speech recognition on candidate device
-  const candActiveRef = useRef(false); // controls restart loop
-  const jitsiSrc = roomId ? `https://meet.jit.si/${roomId}#config.prejoinPageEnabled=false&config.lobby.enabled=false&config.enableLobby=false&config.disableKnocking=true&config.requireDisplayName=false&userInfo.displayName=Candidate` : '';
+  const wherebyUrl = 'https://whereby.com/integrityai?embed&skipMediaPermissionPrompt';
 
-  // Start capturing candidate speech after consent — push finals to localStorage
-  // InterviewScreen polls the same key every 500ms and inserts text live
+  const tabCountRef    = React.useRef(0);
+  const gazeCountRef   = React.useRef(0);
+  const videoRef       = React.useRef(null);
+  const canvasRef      = React.useRef(null);
+  const baselineRef    = React.useRef(null);   // {x, y} iris centre baseline
+  const baselineFrames = React.useRef(0);
+  const lastGazeReport = React.useRef(0);
+  const cameraRef      = React.useRef(null);
+  const candRecRef    = React.useRef(null);  // Speech recognition on candidate device
+  const candActiveRef = React.useRef(false); // controls restart loop
+
+  React.useEffect(() => { tabCountRef.current = tabCount; }, [tabCount]);
+
+  // ── Tab switch + window blur detection ───────────────────────────────────────
+  React.useEffect(() => {
+    const reportSwitch = () => {
+      const next = tabCountRef.current + 1;
+      setTabCount(next); tabCountRef.current = next;
+      if (bcRef) bcRef.postMessage({ type: 'tab_switch', count: next, session: sessionId });
+      try { localStorage.setItem('integrity_tabswitches_' + sessionId, next.toString()); } catch (_e) { /* localStorage unavailable */ }
+      fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ session: sessionId, type: 'tab_switch' }) }).catch(()=>{});
+    };
+    const onVis  = () => { if (document.hidden) reportSwitch(); };
+    const onBlur = () => reportSwitch();
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, [sessionId, bcRef]);
+
+  // ── MediaPipe Gaze Tracking (starts after consent) ───────────────────────────
+  React.useEffect(() => {
+    if (!consented) return;
+    let stopped = false;
+
+    const startGaze = async () => {
+      // Wait for MediaPipe library to be available
+      // MediaPipe is confirmed loaded before startGaze is called (checked in tryStart)
+      const video = videoRef.current;
+      if (!video) return;
+
+      const faceMesh = new FaceMesh({ locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}` });
+      faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true,
+        minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+
+      faceMesh.onResults((results) => {
+        if (stopped || !results.multiFaceLandmarks?.length) return;
+        const lm = results.multiFaceLandmarks[0];
+        // Iris landmarks: right iris centre = 473, left iris centre = 468
+        // Use average of both iris centres for horizontal gaze
+        const rx = lm[473].x; const lx = lm[468].x;
+        const ry = lm[473].y; const ly = lm[468].y;
+        const cx = (rx + lx) / 2;  // 0 = left edge, 1 = right edge
+        const cy = (ry + ly) / 2;
+
+        // Build 30-frame baseline (~1 second at 30fps)
+        if (baselineFrames.current < 30) {
+          if (!baselineRef.current) baselineRef.current = { x: 0, y: 0 };
+          baselineRef.current.x += cx / 30;
+          baselineRef.current.y += cy / 30;
+          baselineFrames.current += 1;
+          if (baselineFrames.current === 30) setGazeStatus('OK');
+          return;
+        }
+
+        const baseline = baselineRef.current;
+        const dx = Math.abs(cx - baseline.x);
+        const dy = Math.abs(cy - baseline.y);
+        // Threshold: >0.12 horizontal or >0.09 vertical deviation = looking away
+        const isAway = dx > 0.12 || dy > 0.09;
+        setGazeStatus(isAway ? 'AWAY' : 'OK');
+
+        if (isAway) {
+          const now = Date.now();
+          // Debounce: report at most once every 2.5 seconds
+          if (now - lastGazeReport.current > 2500) {
+            lastGazeReport.current = now;
+            const next = gazeCountRef.current + 1;
+            gazeCountRef.current = next;
+            setGazeCount(next);
+            fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ session: sessionId, type: 'gaze_deviation' }) }).catch(()=>{});
+            if (bcRef) bcRef.postMessage({ type: 'gaze_deviation', count: next, session: sessionId });
+            try { localStorage.setItem('integrity_gaze_' + sessionId, next.toString()); } catch (_e) { /* localStorage unavailable */ }
+          }
+        }
+      });
+
+      try {
+        const cam = new Camera(video, {
+          onFrame: async () => { if (!stopped) await faceMesh.send({ image: video }); },
+          width: 320, height: 240,
+        });
+        cameraRef.current = cam;
+        cam.start();
+      } catch(e) {
+        console.warn('[IntegrityAI] Gaze tracking unavailable:', e.message); // NOSONAR intentional diagnostic log
+        setGazeStatus('UNAVAILABLE');
+      }
+    };
+
+    // Retry loading: try every 1.5s up to 8x in case MediaPipe CDN is slow
+    let retryTimer = null;
+    let attempts = 0;
+    const tryStart = () => {
+      if (stopped) return;
+      if (typeof FaceMesh === 'undefined' || typeof Camera === 'undefined') {
+        attempts++;
+        if (attempts < 8) { retryTimer = setTimeout(tryStart, 1500); }
+        else { setGazeStatus('UNAVAILABLE'); }
+        return;
+      }
+      startGaze();
+    };
+    retryTimer = setTimeout(tryStart, 800);
+    return () => {
+      stopped = true;
+      clearTimeout(retryTimer);
+      if (cameraRef.current) { try { cameraRef.current.stop(); } catch (_e) { /* safe to ignore — camera may already be stopped */ } }
+    };
+  }, [consented, sessionId, bcRef]);
+
+  // ── Speech capture: push candidate speech finals to localStorage ─────────────
   React.useEffect(() => {
     if (!consented) return;
     const hasSR = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     if (!hasSR) return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     candActiveRef.current = true;
-
     const startRec = () => {
       if (!candActiveRef.current) return;
       const rec = new SR();
       rec.continuous    = true;
-      rec.interimResults = false; // finals only — no need to push partials cross-device
+      rec.interimResults = false;
       rec.lang          = 'en-US';
       rec.onresult = (e) => {
         let text = '';
@@ -1837,43 +1994,29 @@ function CandidateMonitor({ sessionId, roomId }) {
         if (text.trim()) {
           try {
             const key = 'integrity_candtx_' + sessionId;
-                const existing = localStorage.getItem(key) || '';
+            const existing = localStorage.getItem(key) || '';
             localStorage.setItem(key, existing + text);
-          } catch(_e) { /* localStorage unavailable */ }
+          } catch(_e) {}
         }
       };
       rec.onend  = () => { if (candActiveRef.current) setTimeout(startRec, 300); };
-      rec.onerror = () => { /* restart handled by onend */ };
+      rec.onerror = () => {};
       rec.start();
       candRecRef.current = rec;
     };
-
     startRec();
-    return () => {
-      candActiveRef.current = false;
-      try { candRecRef.current?.stop(); } catch(_e) {}
-    };
+    return () => { candActiveRef.current = false; try { candRecRef.current?.stop(); } catch(_e) {} };
   }, [consented, sessionId]);
-
-  React.useEffect(() => {
-    const onVis = () => {
-      if (document.hidden) {
-        const next = tabCount + 1;
-        setTabCount(next);
-        if (bcRef) bcRef.postMessage({ type: 'tab_switch', count: next, session: sessionId });
-        fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ session: sessionId, type: 'tab_switch', count: next }) }).catch(()=>{});
-      }
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
-  }, [tabCount, sessionId, bcRef]);
 
   const handleConsent = () => {
     setConsented(true);
+    // Primary: localStorage storage-event (same-device, cross-tab, instant, no server needed)
+    try { localStorage.setItem('integrity_consent_' + sessionId, Date.now().toString()); } catch (_e) { /* localStorage unavailable (private browsing or quota exceeded) */ }
+    // Secondary: BroadcastChannel (same-device fallback)
+    if (bcRef) bcRef.postMessage({ type: 'consent_given', session: sessionId });
+    // Tertiary: API signal (cross-device, unreliable on serverless but best-effort)
     fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ session: sessionId, type: 'consent_given' }) }).catch(()=>{});
-    if (bcRef) bcRef.postMessage({ type: 'consent_given', session: sessionId });
   };
 
   if (!consented) return (
@@ -1882,8 +2025,7 @@ function CandidateMonitor({ sessionId, roomId }) {
         <div style={{fontSize:32,marginBottom:12}}>🛡️</div>
         <h2 style={{color:'#e2e8f0',fontSize:20,fontWeight:700,marginBottom:12}}>IntegrityAI — Candidate Interview</h2>
         <p style={{color:'#94a3b8',fontSize:14,lineHeight:1.6,marginBottom:8}}>This session uses behavioural analysis to support interview integrity.</p>
-        <p style={{color:'#94a3b8',fontSize:13,lineHeight:1.6,marginBottom:8}}>Your responses will be transcribed using your microphone. No audio is recorded or stored — only text is processed.</p>
-        <p style={{color:'#94a3b8',fontSize:13,lineHeight:1.6,marginBottom:24}}>Tab switches are logged. Please allow microphone access when prompted by your browser.</p>
+        <p style={{color:'#94a3b8',fontSize:13,lineHeight:1.6,marginBottom:24}}>No audio or video is stored. Tab switches are logged. Gaze patterns are analysed for focus signals only.</p>
         <button onClick={handleConsent} style={{background:'#6366f1',color:'white',border:'none',borderRadius:8,padding:'14px 32px',fontSize:15,fontWeight:700,cursor:'pointer',width:'100%',marginBottom:12}}>
           ✓ I Consent — Proceed to Interview
         </button>
@@ -1894,34 +2036,42 @@ function CandidateMonitor({ sessionId, roomId }) {
 
   return (
     <div style={{minHeight:'100vh',background:'#0d0f14',display:'flex',flexDirection:'column'}}>
+      {/* Hidden gaze tracking elements */}
+      <video ref={videoRef} style={{display:'none'}} playsInline muted />
+      <canvas ref={canvasRef} style={{display:'none'}} width={320} height={240} />
+
       <div style={{background:'#1a1f2e',borderBottom:'1px solid rgba(255,255,255,.08)',padding:'10px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <span style={{color:'#6366f1',fontWeight:700,fontSize:14}}>🛡️ IntegrityAI</span>
           <span style={{color:'#64748b',fontSize:11,letterSpacing:1}}>CANDIDATE VIEW</span>
         </div>
-        {tabCount > 0 && (
-          <div style={{background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.4)',borderRadius:6,padding:'4px 10px',fontSize:12,color:'#f87171',fontWeight:700}}>
-            ⚠ {tabCount} tab switch{tabCount !== 1 ? 'es' : ''} logged
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          {/* Gaze status pill */}
+          <div style={{background: gazeStatus==='AWAY'?'rgba(239,68,68,.15)':gazeStatus==='OK'?'rgba(16,185,129,.1)':'rgba(100,116,139,.1)',
+            border:`1px solid ${gazeStatus==='AWAY'?'rgba(239,68,68,.4)':gazeStatus==='OK'?'rgba(16,185,129,.3)':'rgba(100,116,139,.3)'}`,
+            borderRadius:6,padding:'4px 10px',fontSize:11,color:gazeStatus==='AWAY'?'#f87171':gazeStatus==='OK'?'#34d399':'#94a3b8',fontWeight:700}}>
+            {gazeStatus==='CALIBRATING'?'⏳ CALIBRATING GAZE...':gazeStatus==='OK'?'👁 GAZE OK':gazeStatus==='UNAVAILABLE'?'👁 GAZE N/A':`👁 GAZE AWAY (${gazeCount}x)`}
           </div>
-        )}
+          {tabCount > 0 && (
+            <div style={{background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.4)',borderRadius:6,padding:'4px 10px',fontSize:11,color:'#f87171',fontWeight:700}}>
+              {tabCount} tab switch{tabCount !== 1 ? 'es' : ''} logged
+            </div>
+          )}
+        </div>
       </div>
       <div style={{background:'rgba(5,150,105,.1)',borderBottom:'1px solid rgba(5,150,105,.2)',padding:'8px 20px',fontSize:12,color:'#34d399',textAlign:'center'}}>
-        ✓ Consent recorded — keep this tab visible throughout the interview. Switching tabs is logged.
+        ✓ Consent recorded — keep this tab visible throughout the interview
       </div>
       <div style={{background:'rgba(0,0,0,.3)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 20px',fontSize:11,color:'#64748b',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span>Video call below — if it shows a waiting screen, open it in a new tab instead</span>
-        {jitsiSrc && (
-          <a href={jitsiSrc} target="_blank" rel="noopener noreferrer"
-            style={{color:'#818cf8',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:12}}>
-            ↗ Open video call in new tab
-          </a>
-        )}
+        <span>Video call below — or open in a new tab for full screen</span>
+        <a href="https://whereby.com/integrityai" target="_blank" rel="noopener noreferrer"
+          style={{color:'#818cf8',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:12}}>
+          ↗ Open video call in new tab
+        </a>
       </div>
       <div style={{flex:1}}>
-        {jitsiSrc
-          ? <iframe src={jitsiSrc} style={{width:'100%',height:'100%',border:'none',minHeight:'calc(100vh - 106px)'}} allow="camera *; microphone *; display-capture *" />
-          : <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:300,color:'#64748b'}}>No room provided.</div>
-        }
+        <iframe src={wherebyUrl} style={{width:'100%',height:'100%',border:'none',minHeight:'calc(100vh - 120px)'}}
+          allow="camera; microphone; fullscreen; speaker; display-capture" allowFullScreen />
       </div>
     </div>
   );
@@ -1932,9 +2082,8 @@ function App() {
   const params      = new URLSearchParams(window.location.search);
   const isMonitor   = params.get('monitor') === '1';
   const monitorSid  = params.get('session') || 'demo';
-  const roomId      = params.get('room')    || '';
 
-  if (isMonitor) return <CandidateMonitor sessionId={monitorSid} roomId={roomId} />;
+  if (isMonitor) return <CandidateMonitor sessionId={monitorSid} />;
 
   const [step,         setStep]         = useState('step1');
   const [loadingStep,  setLoadingStep]  = useState(0);
@@ -1982,14 +2131,28 @@ function App() {
     setLoadError('');
   };
 
-  if (step === 'step1')    return <Step1 onStart={handleStart} error={loadError} />;
-  if (step === 'loading')  return <Step2 loadingStep={loadingStep} />;
-  if (step === 'step3')    return <Step3 result={qbResult} filename={filename} role={role} company={company} onReset={handleReset} onStartInterview={() => setStep('interview')} />;
-  if (step === 'interview') return <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} onEnd={(data) => { setInterviewData(data); setStep('report'); }} />;
-  if (step === 'report')   return <IntegrityReport result={qbResult} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={handleReset} />;
-  return null;
+  const stepNum = step==='step1'?1 : step==='loading'?2 : step==='step3'?3 : step==='interview'?4 : step==='report'?5 : 1;
+
+  let content = null;
+  if (step === 'step1')     content = <Step1 onStart={handleStart} error={loadError} />;
+  else if (step === 'loading')   content = <Step2 loadingStep={loadingStep} />;
+  else if (step === 'step3')     content = <Step3 result={qbResult} filename={filename} role={role} company={company} onReset={handleReset} onStartInterview={() => setStep('interview')} />;
+  else if (step === 'interview') content = <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} careerAnalysis={qbResult.career_analysis || null} onEnd={(data) => { setInterviewData(data); setStep('report'); }} />;
+  else if (step === 'report')    content = <IntegrityReport result={qbResult} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={handleReset} />;
+
+  return (
+    <div className="shell">
+      <Topbar step={stepNum} />
+      <div className="main">
+        <Steps current={stepNum} />
+        {content}
+      </div>
+    </div>
+  );
 }
 
+
+var _fb = document.getElementById('fallback'); if (_fb) _fb.remove();
 ReactDOM.render(<App />, document.getElementById('root'));
     </script>
   </body>
