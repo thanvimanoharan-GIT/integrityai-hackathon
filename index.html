@@ -1556,6 +1556,9 @@ function AnalysingScreen({ analyseError }) {
               {/* Whereby — interviewer opens in separate tab */}
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
                 gap:10,padding:'18px 16px',background:'#0d0f14',minHeight:160}}>
+                <div style={{fontSize:11,color:'#fbbf24',marginBottom:2,textAlign:'center'}}>
+                  ⚠️ Log into <a href="https://whereby.com/user/login" target="_blank" rel="noopener noreferrer" style={{color:'#fbbf24'}}>whereby.com</a> first — or you'll see "waiting for host"
+                </div>
                 <a href={wherebyTabUrl} target="_blank" rel="noopener noreferrer"
                   style={{display:'inline-flex',alignItems:'center',gap:8,padding:'10px 22px',
                     background:'linear-gradient(135deg,#6366f1,#a855f7)',color:'white',borderRadius:8,
