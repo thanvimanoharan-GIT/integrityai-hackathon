@@ -2153,7 +2153,8 @@ function App() {
 
 
 var _fb = document.getElementById('fallback'); if (_fb) _fb.remove();
-ReactDOM.render(<App />, document.getElementById('root'));
+const _root = ReactDOM.createRoot(document.getElementById('root'));
+_root.render(<App />);
     </script>
   </body>
 </html>
