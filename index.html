@@ -902,6 +902,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const longestSilenceRef     = useRef(0);
 
   const isRecordingRef  = useRef(false);
+  const [micActive, setMicActive] = useState(false);  // true = recognizer currently listening
   const transcriptRef   = useRef('');
   const sessionFinalRef = useRef('');
   const speakerRef      = useRef('candidate');
@@ -1082,6 +1083,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     rec.onend = () => {
       // Normal auto-end (browser silence timeout) — commit what we have
       // Speaker switches no longer call rec.stop(), so this only fires on natural end
+      setMicActive(false);
       if (sessionFinalRef.current.trim()) {
         transcriptRef.current += sessionFinalRef.current;
       }
@@ -1106,6 +1108,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     };
     recRef.current = rec;
     rec.start();
+    setMicActive(true);
   };
 
   const startRecording = () => {
@@ -1123,15 +1126,18 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     setIvState('recording');
     timerRef.current = setInterval(() => setElapsed(n=>n+1), 1000);
     startSpeech();
-    // Watchdog: if recognizer goes silent for > 10s, force a restart cycle
+    // Smart watchdog: only restart if NO speech activity for 15s (not mid-speech)
+    // lastSpeechEventRef is updated on every onresult — so this only fires if recognizer is truly dead
     if (watchdogRef.current) clearInterval(watchdogRef.current);
     watchdogRef.current = setInterval(() => {
       if (!isRecordingRef.current) { clearInterval(watchdogRef.current); watchdogRef.current = null; return; }
-      // Poke the recognizer — if it's in a dead state abort() will fire onend which restarts it
-      try {
-        if (recRef.current) { recRef.current.abort(); }
-      } catch(_e) {}
-    }, 10000);
+      const lastActivity = lastSpeechEventRef.current || 0;
+      const silentMs = Date.now() - lastActivity;
+      // Only restart if silent for > 15s AND mic is showing inactive — avoids cutting off live speech
+      if (silentMs > 15000 && !micActive) {
+        try { if (recRef.current) recRef.current.abort(); } catch(_e) {}
+      }
+    }, 5000);
   };
 
   // Toggle speaker — commits current session text, scores candidate turns
@@ -1702,7 +1708,7 @@ function AnalysingScreen({ analyseError }) {
       {/* Bottom bar */}
       {ivState === 'recording' && (
         <div className="iv-bottombar">
-          <div className="iv-bottom-hint">🔴 Recording · {formatTime(elapsed)} elapsed · {wordCount} candidate words · {candidateTabSwitches > 0 ? `⚠ ${candidateTabSwitches} candidate tab switch${candidateTabSwitches>1?'es':''}` : '✓ Candidate focused'}</div>
+          <div className="iv-bottom-hint">🔴 Recording · {formatTime(elapsed)} elapsed · {wordCount} candidate words · {candidateTabSwitches > 0 ? `⚠ ${candidateTabSwitches} candidate tab switch${candidateTabSwitches>1?'es':''}` : '✓ Candidate focused'} · <span style={{color: micActive ? '#22c55e' : '#ef4444', fontWeight: 600}}>{micActive ? '🎙 Mic live' : '⚠ Mic off — restarting…'}</span></div>
           <div className="iv-bottom-right">
             <button className="btn btn-ghost btn-sm" onClick={()=>{stopRecording();setElapsed(0);setDisplayText('');transcriptRef.current='';setIvState('setup');}}>↩ Reset</button>
             <button className="btn btn-danger btn-auto" onClick={handleEndAndAnalyse}>⏹ End &amp; Analyse Interview</button>
