@@ -17,7 +17,24 @@ Compare every factual claim in the interview against the resume. Candidates usin
 ANALYSE THESE 9 DIMENSIONS:
 
 1. RESUME MISMATCH (HIGHEST WEIGHT)
-   - Did the candidate claim experiences, projects, tools, or achievements NOT in their resume?
+   CRITICAL — ALWAYS DO THESE TWO CHECKS FIRST:
+
+   A) YEARS INFLATION (scores against integrity):
+      Count the total years of experience from the resume (sum all employment periods).
+      If the candidate claimed significantly more years in the interview → FLAG as resume_mismatch HIGH.
+      Example: Resume shows 5 years across all roles → candidate says "in my 12 years of experience" = HIGH RISK.
+
+   B) TOOLS & TECHNOLOGY OBSERVATION (informational only — does NOT reduce integrity score):
+      List every tool, framework, cloud service, or technology the candidate mentioned in the interview.
+      Cross-reference with what appears in the resume.
+      Produce two lists:
+        - tools_on_resume_used_in_interview: tools they mentioned that ARE on the resume (expected — genuine)
+        - tools_not_on_resume: tools they mentioned that are NOT on the resume
+      For tools_not_on_resume: note them as observations, NOT as red flags. People learn tools not on their
+      resume all the time. Only flag as suspicious if the candidate CLAIMS deep expertise in a tool that
+      contradicts their experience level (e.g., resume shows junior → claims architecting enterprise Kafka clusters).
+      Do NOT reduce the integrity_score purely because a candidate knows extra tools.
+
    - Did they mention companies, dates, or roles that contradict their resume?
    - Did they demonstrate technical depth far beyond what their resume level suggests?
    - Did generic "impressive" answers replace the specific details actually on their resume?
@@ -82,6 +99,7 @@ THE UNRELIABLE SIGNALS (low weight, supporting only):
 ✗ Polished language / formal transitions — also seen in genuine prepared candidates
 ✗ Missing fillers — stripped by speech-to-text from everyone
 ✗ Numbered structure — many people think and speak this way naturally
+✗ Knowing tools not listed on resume — people learn constantly; treat as observation only
 
 SCORING:
 - 70–100: LOW risk — resume consistent, some specifics present, no major contradictions
@@ -110,19 +128,25 @@ Respond ONLY with valid JSON (no markdown, no code fences):
       "why_suspicious": "<brief plain-English note — reference resume if relevant>"
     }
   ],
-  "resume_vs_interview_summary": "<2-3 sentences specifically about what matched or didn't match between resume claims and interview answers>",
+  "resume_vs_interview_summary": "<2-3 sentences — MUST include: (1) total resume years vs years claimed in interview if candidate stated years of experience, (2) any factual contradictions found>",
+  "tool_observations": {
+    "tools_on_resume_used_in_interview": ["<tool>"],
+    "tools_not_on_resume": ["<tool — informational only, not penalised>"],
+    "tools_note": "<one sentence: any concern about depth claimed for tools vs experience level, or 'No tool depth concerns'>"
+  },
   "overall_assessment": "<3-4 sentence narrative — specific, direct, actionable>"
 }`;
 
 module.exports = async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const allowedOrigin = process.env.ALLOWED_ORIGIN || 'https://integrityai-hackathon.vercel.app';
+  res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ detail: "Method not allowed" });
 
   try {
-    const { transcript, candidate_name, trap_questions, tab_switches, duration_seconds, role, interviewer_notes, resume_text } = req.body;
+    const { transcript, candidate_name, trap_questions, tab_switches, gaze_deviations, duration_seconds, role, interviewer_notes, resume_text, career_analysis } = req.body;
 
     if (!transcript || transcript.trim().length < 20) {
       return res.status(400).json({ detail: "Transcript is too short to analyse." });
@@ -148,12 +172,21 @@ CANDIDATE NAME: ${candidate_name || 'Unknown'}
 ROLE: ${role || 'Not specified'}
 INTERVIEW DURATION: ${Math.round((duration_seconds || 0) / 60)} minutes
 CANDIDATE TAB/WINDOW SWITCHES: ${tab_switches || 0}
+CANDIDATE GAZE DEVIATIONS (eyes off-screen): ${gaze_deviations || 0}
 
 TRAP QUESTIONS IN BANK (fake tools — check if candidate accepted any):
 ${trap_questions?.length ? trap_questions.map((q, i) => `${i+1}. ${q}`).join('\n') : 'None provided'}
 
 CANDIDATE RESUME (ground truth — cross-reference every interview claim against this):
 ${truncatedResume || 'Resume not provided — skip resume cross-referencing.'}
+
+CAREER RISK PROFILE (pre-analysed from resume):
+- Companies worked at: ${career_analysis?.total_companies ?? 'unknown'}
+- Average tenure: ${career_analysis?.average_tenure_months ? career_analysis.average_tenure_months + ' months' : 'unknown'}
+- Job hopping risk: ${career_analysis?.job_hopping_risk ?? 'unknown'} — ${career_analysis?.job_hopping_summary ?? ''}
+- Career gaps detected: ${career_analysis?.career_gaps?.length ? career_analysis.career_gaps.map(g => g.period + ' (' + g.duration_months + ' months)').join(', ') : 'none'}
+- Project continuity risk: ${career_analysis?.project_continuity_risk ?? 'unknown'} — ${career_analysis?.project_continuity_note ?? ''}
+- Career red flags: ${career_analysis?.overall_career_red_flags?.length ? career_analysis.overall_career_red_flags.join('; ') : 'none'}
 
 CANDIDATE INTERVIEW ANSWERS (candidate speech only — interviewer questions stripped):
 ${truncatedTranscript}
@@ -192,6 +225,7 @@ ${interviewer_notes || 'None'}
     return res.status(200).json(report);
 
   } catch (err) {
-    return res.status(500).json({ detail: err.message });
+    console.error('[score-interview]', err);
+    return res.status(500).json({ detail: 'An internal error occurred. Please try again.' });
   }
 };

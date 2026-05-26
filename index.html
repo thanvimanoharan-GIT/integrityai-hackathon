@@ -1695,6 +1695,31 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
         </div>
       )}
 
+      {/* Resume vs Interview Summary — years inflation, tool observations */}
+      {(report.resume_vs_interview_summary || report.tool_observations) && (
+        <div className="assessment-box" style={{borderColor:'rgba(251,191,36,.35)',background:'rgba(251,191,36,.07)'}}>
+          <div className="assessment-lbl" style={{color:'#fbbf24'}}>📋 RESUME VS INTERVIEW</div>
+          {report.resume_vs_interview_summary && (
+            <div className="assessment-text" style={{marginBottom: report.tool_observations ? 12 : 0}}>
+              {report.resume_vs_interview_summary}
+            </div>
+          )}
+          {report.tool_observations && (
+            <div style={{fontSize:12,color:'#94a3b8',borderTop:'1px solid rgba(251,191,36,.2)',paddingTop:10,marginTop:4}}>
+              {report.tool_observations.tools_on_resume_used_in_interview?.length > 0 && (
+                <div style={{marginBottom:4}}>✅ <strong style={{color:'#e2e8f0'}}>Confirmed on resume:</strong> {report.tool_observations.tools_on_resume_used_in_interview.join(', ')}</div>
+              )}
+              {report.tool_observations.tools_not_on_resume?.length > 0 && (
+                <div style={{marginBottom:4}}>ℹ️ <strong style={{color:'#e2e8f0'}}>Mentioned but not on resume:</strong> {report.tool_observations.tools_not_on_resume.join(', ')}</div>
+              )}
+              {report.tool_observations.tools_note && (
+                <div style={{color:'#64748b',fontStyle:'italic'}}>{report.tool_observations.tools_note}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Flags */}
       {report.flags?.length > 0 && <>
         <div className="section-title">⚑ Suspicion Flags ({report.flags.length})</div>
@@ -1813,103 +1838,6 @@ function CandidateMonitor({ sessionId, roomId }) {
           try {
             const key = 'integrity_candtx_' + sessionId;
                 const existing = localStorage.getItem(key) || '';
-            localStorage.setItem(key, existing + text);
-          } catch(_e) { /* localStorage unavailable */ }
-        }
-      };
-      rec.onend  = () => { if (candActiveRef.current) setTimeout(startRec, 300); };
-      rec.onerror = () => { /* restart handled by onend */ };
-      rec.start();
-      candRecRef.current = rec;
-    };
-
-    startRec();
-    return () => {
-      candActiveRef.current = false;
-      try { candRecRef.current?.stop(); } catch(_e) {}
-    };
-  }, [consented, sessionId]);
-
-  React.useEffect(() => {
-    const onVis = () => {
-      if (document.hidden) {
-        const next = tabCount + 1;
-        setTabCount(next);
-        if (bcRef) bcRef.postMessage({ type: 'tab_switch', count: next, session: sessionId });
-        fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ session: sessionId, type: 'tab_switch', count: next }) }).catch(()=>{});
-      }
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
-  }, [tabCount, sessionId, bcRef]);
-
-  const handleConsent = () => {
-    setConsented(true);
-    fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ session: sessionId, type: 'consent_given' }) }).catch(()=>{});
-    if (bcRef) bcRef.postMessage({ type: 'consent_given', session: sessionId });
-  };
-
-  if (!consented) return (
-    <div style={{minHeight:'100vh',background:'#0d0f14',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-      <div style={{background:'#1a1f2e',border:'1px solid rgba(99,102,241,.3)',borderRadius:12,padding:40,maxWidth:480,width:'100%',textAlign:'center'}}>
-        <div style={{fontSize:32,marginBottom:12}}>🛡️</div>
-        <h2 style={{color:'#e2e8f0',fontSize:20,fontWeight:700,marginBottom:12}}>IntegrityAI — Candidate Interview</h2>
-        <p style={{color:'#94a3b8',fontSize:14,lineHeight:1.6,marginBottom:8}}>This session uses behavioural analysis to support interview integrity.</p>
-        <p style={{color:'#94a3b8',fontSize:13,lineHeight:1.6,marginBottom:8}}>Your responses will be transcribed using your microphone. No audio is recorded or stored — only text is processed.</p>
-        <p style={{color:'#94a3b8',fontSize:13,lineHeight:1.6,marginBottom:24}}>Tab switches are logged. Please allow microphone access when prompted by your browser.</p>
-        <button onClick={handleConsent} style={{background:'#6366f1',color:'white',border:'none',borderRadius:8,padding:'14px 32px',fontSize:15,fontWeight:700,cursor:'pointer',width:'100%',marginBottom:12}}>
-          ✓ I Consent — Proceed to Interview
-        </button>
-        <p style={{color:'#475569',fontSize:11,marginTop:8}}>By clicking above you confirm you have read and agree to the monitoring terms for this session.</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{minHeight:'100vh',background:'#0d0f14',display:'flex',flexDirection:'column'}}>
-      <div style={{background:'#1a1f2e',borderBottom:'1px solid rgba(255,255,255,.08)',padding:'10px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <span style={{color:'#6366f1',fontWeight:700,fontSize:14}}>🛡️ IntegrityAI</span>
-          <span style={{color:'#64748b',fontSize:11,letterSpacing:1}}>CANDIDATE VIEW</span>
-        </div>
-        {tabCount > 0 && (
-          <div style={{background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.4)',borderRadius:6,padding:'4px 10px',fontSize:12,color:'#f87171',fontWeight:700}}>
-            ⚠ {tabCount} tab switch{tabCount !== 1 ? 'es' : ''} logged
-          </div>
-        )}
-      </div>
-      <div style={{background:'rgba(5,150,105,.1)',borderBottom:'1px solid rgba(5,150,105,.2)',padding:'8px 20px',fontSize:12,color:'#34d399',textAlign:'center'}}>
-        ✓ Consent recorded — keep this tab visible throughout the interview. Switching tabs is logged.
-      </div>
-      <div style={{background:'rgba(0,0,0,.3)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 20px',fontSize:11,color:'#64748b',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span>Video call below — if it shows a waiting screen, open it in a new tab instead</span>
-        {jitsiSrc && (
-          <a href={jitsiSrc} target="_blank" rel="noopener noreferrer"
-            style={{color:'#818cf8',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:12}}>
-            ↗ Open video call in new tab
-          </a>
-        )}
-      </div>
-      <div style={{flex:1}}>
-        {jitsiSrc
-          ? <iframe src={jitsiSrc} style={{width:'100%',height:'100%',border:'none',minHeight:'calc(100vh - 106px)'}} allow="camera *; microphone *; display-capture *" />
-          : <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:300,color:'#64748b'}}>No room provided.</div>
-        }
-      </div>
-    </div>
-  );
-}
-
-// ── Root App ──────────────────────────────────────────────────────────────────
-function App() {
-  const params      = new URLSearchParams(window.location.search);
-  const isMonitor   = params.get('monitor') === '1';
-  const monitorSid  = params.get('session') || 'demo';
-  const roomId      = params.get('room')    || '';
-
-  if (isM            const existing = localStorage.getItem(key) || '';
             localStorage.setItem(key, existing + text);
           } catch(_e) { /* localStorage unavailable */ }
         }
