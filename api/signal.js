@@ -39,29 +39,53 @@ module.exports = async (req, res) => {
   const session = req.method === 'POST' ? req.body?.session : req.query?.session;
   if (!session) return res.status(400).json({ detail: 'session required' });
 
-  // ── POST ────────────────────────────────────────────────────────────────────
+  // POST handler
   if (req.method === 'POST') {
     const { type, text, gaze_count, longest_silence_ms } = req.body;
     const s = getOrCreate(session);
 
     if (type === 'transcript_snapshot' && text) {
-      // Full accumulated candidate speech + behavioral signals from Mac B
       s.transcript_snapshot = text;
       s.snapshot_ts         = Date.now();
       s.snapshot_gaze       = typeof gaze_count       === 'number' ? gaze_count       : 0;
       s.snapshot_silence_ms = typeof longest_silence_ms === 'number' ? longest_silence_ms : null;
 
     } else if (type === 'transcript_chunk' && text && text.trim()) {
-      // Real-time incremental chunk (kept for display / future use)
       s.transcript_chunks.push({ text: text.trim(), ts: Date.now() });
       if (s.transcript_chunks.length > 500) s.transcript_chunks.shift();
 
     } else if (type) {
-      // Boolean signal: consent_given, tab_switch, gaze_deviation, etc.
       s[type] = true;
     }
 
     return res.status(200).json({ ok: true });
   }
 
-  // ── GET ───────────────────────────────────�
+  // GET handler
+  if (req.method === 'GET') {
+    const s      = sessions.get(session) || {};
+    const cursor = parseInt(req.query.cursor || '0', 10);
+    const chunks = (s.transcript_chunks || []).slice(cursor);
+
+    const {
+      transcript_chunks,
+      transcript_snapshot,
+      snapshot_ts,
+      snapshot_gaze,
+      snapshot_silence_ms,
+      ...flags
+    } = s;
+
+    return res.status(200).json({
+      ...flags,
+      transcript_chunks:   chunks,
+      next_cursor:         cursor + chunks.length,
+      transcript_snapshot: transcript_snapshot || '',
+      snapshot_ts:         snapshot_ts         || 0,
+      snapshot_gaze:       snapshot_gaze       || 0,
+      snapshot_silence_ms: snapshot_silence_ms ?? null,
+    });
+  }
+
+  return res.status(405).json({ detail: 'Method not allowed' });
+};
