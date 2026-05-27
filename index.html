@@ -277,38 +277,6 @@
     .monitor-url-block { margin-top: 12px; background: rgba(16,185,129,.05); border: 1px solid rgba(16,185,129,.2); border-radius: 8px; padding: 14px; }
     .monitor-url-lbl { font-size: 10px; font-weight: 700; letter-spacing: .6px; color: #10b981; margin-bottom: 8px; }
 
-    /* Live suspicion meter — full-width panel */
-    .susp-panel { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; padding: 16px 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-    .susp-left  { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
-    .susp-lbl   { font-size: 10px; font-weight: 700; letter-spacing: .7px; color: #475569; }
-    .susp-score { font-size: 38px; font-weight: 800; line-height: 1; }
-    .susp-score.low    { color: #10b981; }
-    .susp-score.medium { color: #fbbf24; }
-    .susp-score.high   { color: #ef4444; }
-    .susp-score.idle   { color: #2d3446; }
-    .susp-risk-lbl { font-size: 11px; font-weight: 700; letter-spacing: .4px; }
-    .susp-risk-lbl.low    { color: #10b981; }
-    .susp-risk-lbl.medium { color: #fbbf24; }
-    .susp-risk-lbl.high   { color: #ef4444; }
-    .susp-risk-lbl.idle   { color: #2d3446; }
-    .susp-center { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
-    .susp-track { width: 100%; height: 10px; background: #1e2330; border-radius: 5px; overflow: hidden; }
-    .susp-fill  { height: 100%; border-radius: 5px; transition: width .7s ease, background .7s ease; }
-    .susp-fill.low    { background: linear-gradient(90deg,#059669,#10b981); }
-    .susp-fill.medium { background: linear-gradient(90deg,#d97706,#fbbf24); }
-    .susp-fill.high   { background: linear-gradient(90deg,#dc2626,#ef4444); }
-    .susp-fill.idle   { background: #1e2330; }
-    .susp-dots  { display: flex; gap: 5px; align-items: center; }
-    .susp-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; cursor: default; transition: transform .15s; }
-    .susp-dot:hover { transform: scale(1.3); }
-    .susp-dot.low    { background: #10b981; }
-    .susp-dot.medium { background: #fbbf24; }
-    .susp-dot.high   { background: #ef4444; }
-    .susp-dot.empty  { background: #1e2330; border: 1px solid #2d3446; }
-    .susp-right { display: flex; flex-direction: column; gap: 6px; max-width: 260px; }
-    .susp-note  { font-size: 12px; color: #94a3b8; line-height: 1.5; font-style: italic; }
-    .susp-hint  { font-size: 11px; color: #2d3446; line-height: 1.5; }
-    .susp-scoring { font-size: 12px; color: #6366f1; font-weight: 600; animation: blink .7s ease-in-out infinite alternate; }
 
     /* Right panel tabs */
     .right-panel-tabbed { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; height: 100%; }
@@ -879,7 +847,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const remoteGazeCountRef = useRef(0);
   const [currentSpeaker, setCurrentSpeaker] = useState('candidate');
   const [turnScores, setTurnScores]         = useState([]); // [{score, flag, note}]
-  const [liveScore, setLiveScore]           = useState(null);
   const [isScoring, setIsScoring]           = useState(false);
   const [askedIds, setAskedIds]             = useState(new Set());
   const [notes, setNotes]                   = useState('');
@@ -922,6 +889,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const interimRef            = useRef('');    // mirrors interim state for sync access in switchSpeaker
   const candTxLastLenRef      = useRef(0);     // bytes of integrity_candtx_SESSION already consumed
   const transcriptCursorRef    = useRef(0);   // cursor for signal API transcript chunk polling (cross-machine)
+  const localTxActiveRef       = useRef(false); // true once localStorage path has delivered candidate text (same-machine)
+  const snapshotConsumedLenRef = useRef(0);   // chars of transcript_snapshot already inserted (dedup across snapshots)
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -953,7 +922,10 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     return () => { try { bc?.close(); } catch(e) {} };
   }, [sessionId]);
 
-  // Cross-machine signal poll — consent + transcript chunks from candidate device (every 2s)
+  // Cross-machine signal poll — consent + transcript from candidate device (every 2s)
+  // Uses two tracks to survive Netlify serverless instance switches:
+  //   CHUNK track   — real-time incremental (cursor-based)
+  //   SNAPSHOT track — full accumulated text sent every 10s by candidate (fills gaps)
   useEffect(() => {
     const id = setInterval(async () => {
       try {
@@ -965,12 +937,11 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         // Consent
         if (data.consent_given) { setConsentReady(true); setConsentAuto(true); }
 
-        // Transcript chunks pushed by candidate device via signal API (cross-machine path)
-        if (data.transcript_chunks && data.transcript_chunks.length > 0 && isRecordingRef.current) {
-          transcriptCursorRef.current = data.next_cursor;
-          const newText = data.transcript_chunks.map(c => c.text).join(' ').trim();
+        // Skip transcript tracks if same-machine localStorage already delivering (avoids duplicates)
+        if (localTxActiveRef.current || !isRecordingRef.current) return;
+
+        const insertCandidateText = (newText) => {
           if (!newText || newText.split(' ').length < 2) return;
-          // Commit any in-progress interviewer speech first
           if (sessionFinalRef.current.trim()) {
             transcriptRef.current += sessionFinalRef.current;
             sessionFinalRef.current = '';
@@ -979,7 +950,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           speakerRef.current = 'interviewer';
           setCurrentSpeaker('interviewer');
           setDisplayText(transcriptRef.current);
-          // Score this candidate turn
           if (newText.split(' ').length >= 5) {
             turnCountRef.current += 1;
             const turnNum = turnCountRef.current;
@@ -991,9 +961,26 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
                   score: result.suspicion_score, flag: result.flag, note: result.note,
                   turn: turnNum, latency_ms: null, silence_ms: null, answer_text: newText,
                 }]);
-                setLiveScore(result.suspicion_score);
               }
             });
+          }
+        };
+
+        // CHUNK track — deliver new real-time chunks
+        if (data.transcript_chunks && data.transcript_chunks.length > 0) {
+          transcriptCursorRef.current = data.next_cursor;
+          const newText = data.transcript_chunks.map(c => c.text).join(' ').trim();
+          insertCandidateText(newText);
+        }
+
+        // SNAPSHOT track — fill any gaps caused by instance switches
+        // Only consume text beyond what we've already seen from this snapshot
+        const snap = data.transcript_snapshot || '';
+        if (snap.length > snapshotConsumedLenRef.current) {
+          const gap = snap.slice(snapshotConsumedLenRef.current).trim();
+          snapshotConsumedLenRef.current = snap.length;
+          if (gap && gap.split(' ').length >= 2) {
+            insertCandidateText(gap);
           }
         }
       } catch {}
@@ -1024,6 +1011,9 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         const newText = full.slice(candTxLastLenRef.current).trim();
         candTxLastLenRef.current = full.length;
         if (!newText) return;
+
+        // Mark that the local path is active — prevents signal API from double-inserting same text
+        localTxActiveRef.current = true;
 
         // Commit any in-progress interviewer speech first (so we don't interleave)
         if (sessionFinalRef.current.trim()) {
@@ -1071,7 +1061,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
                 }
                 return updated;
               });
-              setLiveScore(result.suspicion_score);
             }
           });
         }
@@ -1255,7 +1244,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
               }
               return updated;
             });
-            setLiveScore(result.suspicion_score);
           }
         });
       }
@@ -1344,7 +1332,6 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     }
   };
 
-  const meterClass = (s) => s === null ? '' : s <= 40 ? 'low' : s <= 70 ? 'medium' : 'high';
 
   const copyMonitor = () => { navigator.clipboard.writeText(monitorUrl); setMonitorCopied(true); setTimeout(()=>setMonitorCopied(false),2500); };
   const toggleAsked = (id) => setAskedIds(prev => { const s=new Set(prev); s.has(id)?s.delete(id):s.add(id); return s; });
@@ -1517,64 +1504,6 @@ function AnalysingScreen({ analyseError }) {
         </div>
       )}
 
-      {/* Live Suspicion Meter — full-width panel, always visible during recording */}
-      {ivState === 'recording' && (() => {
-        const sc = meterClass(liveScore);
-        const riskLabel = { low:'LOW RISK', medium:'MEDIUM RISK', high:'HIGH RISK' };
-        return (
-          <div className="susp-panel">
-            <div className="susp-left">
-              <div className="susp-lbl">📊 SUSPICION SCORE</div>
-              <div className={`susp-score ${liveScore===null?'idle':sc}`}>
-                {isScoring ? '…' : liveScore !== null ? <>{liveScore}<span style={{fontSize:14,fontWeight:400,opacity:.7}}>/100</span></> : '—'}
-              </div>
-              <div style={{fontSize:10,color:'#64748b',marginBottom:2}}>0 = genuine · 100 = suspicious</div>
-              <div className={`susp-risk-lbl ${liveScore===null?'idle':sc}`}>
-                {isScoring ? 'Scoring…' : liveScore !== null ? riskLabel[sc] : 'Waiting for first answer'}
-              </div>
-            </div>
-            <div className="susp-center">
-              <div className="susp-track">
-                <div className={`susp-fill ${liveScore===null?'idle':sc}`} style={{width: liveScore!==null?`${liveScore}%`:'0%'}} />
-              </div>
-              <div className="susp-dots">
-                {[...Array(8)].map((_,i) => {
-                  const t = turnScores[i];
-                  const latStr = t?.latency_ms!=null ? `⏱ ${Math.round(t.latency_ms/1000)}s` : '';
-                  const silStr = t?.silence_ms!=null  ? `🔇 ${Math.round(t.silence_ms/1000)}s pause` : '';
-                  const tip = [latStr,silStr].filter(Boolean).join(' · ');
-                  return <div key={i} className={`susp-dot ${t?meterClass(t.score):'empty'}`}
-                    title={t?`Turn ${t.turn}: ${t.score}/100\n${t.note}${tip?'\n'+tip:''}`:'Not yet scored'} />;
-                })}
-                {turnScores.length > 0 && <span style={{fontSize:10,color:'#475569',marginLeft:4}}>{turnScores.length} turn{turnScores.length>1?'s':''} scored</span>}
-              </div>
-            </div>
-            <div className="susp-right">
-              {isScoring && <div className="susp-scoring">🔄 Analysing last answer…</div>}
-              {!isScoring && turnScores.length > 0 && (() => {
-                const last = turnScores[turnScores.length-1];
-                const latSec = last.latency_ms!=null ? Math.round(last.latency_ms/1000) : null;
-                const silSec = last.silence_ms!=null  ? Math.round(last.silence_ms/1000)  : null;
-                const latColor = latSec==null?'#475569': latSec>20?'#ef4444': latSec>10?'#fbbf24':'#10b981';
-                const silColor = silSec==null?'#475569': silSec<2?'#ef4444': silSec<5?'#fbbf24':'#10b981';
-                return (
-                  <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                    {last.note && <div className="susp-note">"{last.note}"</div>}
-                    <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-                      {latSec!=null && <span style={{fontSize:11,fontWeight:700,color:latColor,background:'rgba(0,0,0,.35)',padding:'2px 8px',borderRadius:6}}
-                        title="Time from question end to first word — >15s may indicate reading from a source">⏱ {latSec}s to respond{latSec>15?' ⚠':''}</span>}
-                      {silSec!=null && <span style={{fontSize:11,fontWeight:700,color:silColor,background:'rgba(0,0,0,.35)',padding:'2px 8px',borderRadius:6}}
-                        title="Longest mid-answer gap — <2s in a long answer suggests reading fluently">🔇 {silSec}s max pause{silSec<2?' ⚠':''}</span>}
-                    </div>
-                  </div>
-                );
-              })()}
-              {!isScoring && turnScores.length === 0 &&
-                <div className="susp-hint">Scored when candidate turn ends · click buttons above to override</div>}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Active interview body */}
       {ivState === 'recording' && (
@@ -2130,46 +2059,78 @@ function CandidateMonitor({ sessionId }) {
     };
   }, [consented, sessionId, bcRef]);
 
-  // ── Speech capture: push candidate speech finals to localStorage ─────────────
+  // ── Speech capture: push candidate speech finals to localStorage + signal API ──
   React.useEffect(() => {
     if (!consented) return;
     const hasSR = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     if (!hasSR) return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     candActiveRef.current = true;
+
+    // Running accumulator — used for snapshot heartbeat (cross-instance reliability fix)
+    let accumulated = '';
+    let lastSnapshotTs = 0;
+
+    const postSnapshot = () => {
+      if (!accumulated.trim()) return;
+      fetch('/api/signal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: sessionId, type: 'transcript_snapshot', text: accumulated })
+      }).catch(() => {});
+      lastSnapshotTs = Date.now();
+    };
+
     const startRec = () => {
       if (!candActiveRef.current) return;
       const rec = new SR();
-      rec.continuous    = true;
+      rec.continuous     = true;
       rec.interimResults = false;
-      rec.lang          = 'en-US';
+      rec.lang           = 'en-US';
       rec.onresult = (e) => {
         let text = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           if (e.results[i].isFinal) text += e.results[i][0].transcript + ' ';
         }
         if (text.trim()) {
-          // Primary: signal API — works cross-machine (different devices)
+          accumulated += text;
+
+          // Track 1 — real-time chunk (cross-machine, fast, may miss on instance switch)
           fetch('/api/signal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ session: sessionId, type: 'transcript_chunk', text: text.trim() })
           }).catch(() => {});
-          // Fallback: localStorage — works same-machine (two tabs on same browser)
+
+          // Track 2 — localStorage (same-machine fallback, instant)
           try {
             const key = 'integrity_candtx_' + sessionId;
             const existing = localStorage.getItem(key) || '';
             localStorage.setItem(key, existing + text);
           } catch(_e) {}
+
+          // Track 3 — snapshot heartbeat: send full accumulated text every 10s
+          // Survives Netlify instance switches — interviewer takes whichever is longer
+          if (Date.now() - lastSnapshotTs > 10000) postSnapshot();
         }
       };
-      rec.onend  = () => { if (candActiveRef.current) setTimeout(startRec, 300); };
+      rec.onend  = () => {
+        // Also fire a snapshot when recognition ends (catches any unsent accumulation)
+        postSnapshot();
+        if (candActiveRef.current) setTimeout(startRec, 300);
+      };
       rec.onerror = () => {};
       rec.start();
       candRecRef.current = rec;
     };
     startRec();
-    return () => { candActiveRef.current = false; try { candRecRef.current?.stop(); } catch(_e) {} };
+
+    // Send final snapshot on unmount
+    return () => {
+      candActiveRef.current = false;
+      postSnapshot();
+      try { candRecRef.current?.stop(); } catch(_e) {}
+    };
   }, [consented, sessionId]);
 
   const handleConsent = () => {
@@ -2276,49 +2237,4 @@ function App() {
       const result = await generateQuestions(text, roleVal, companyVal);
       setLoadingStep(3);
       setQbResult(result);
-      setStep('step3');
-    } catch (err) {
-      setLoadError(err.message || 'Something went wrong. Please try again.');
-      setStep('step1');
-    }
-  };
-
-  const handleReset = () => {
-    setStep('step1');
-    setQbResult(null);
-    setFilename('');
-    setRole('');
-    setCompany('');
-    setSessionId('');
-    setResumeText('');
-    setInterviewData(null);
-    setLoadError('');
-  };
-
-  const stepNum = step==='step1'?1 : step==='loading'?2 : step==='step3'?3 : step==='interview'?4 : step==='report'?5 : 1;
-
-  let content = null;
-  if (step === 'step1')     content = <Step1 onStart={handleStart} error={loadError} />;
-  else if (step === 'loading')   content = <Step2 loadingStep={loadingStep} />;
-  else if (step === 'step3')     content = <Step3 result={qbResult} filename={filename} role={role} company={company} onReset={handleReset} onStartInterview={() => setStep('interview')} />;
-  else if (step === 'interview') content = <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} careerAnalysis={qbResult.career_analysis || null} onEnd={(data) => { setInterviewData(data); setStep('report'); }} />;
-  else if (step === 'report')    content = <IntegrityReport result={qbResult} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={handleReset} />;
-
-  return (
-    <div className="shell">
-      <Topbar step={stepNum} />
-      <div className="main">
-        <Steps current={stepNum} />
-        {content}
-      </div>
-    </div>
-  );
-}
-
-
-var _fb = document.getElementById('fallback'); if (_fb) _fb.remove();
-const _root = ReactDOM.createRoot(document.getElementById('root'));
-_root.render(<App />);
-    </script>
-  </body>
-</html>
+      s

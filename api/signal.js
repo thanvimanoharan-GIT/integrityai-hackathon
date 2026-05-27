@@ -1,15 +1,26 @@
 /**
  * IntegrityAI — Session Signal Bus
- * In-process store for cross-machine signals: consent, gaze, tab switches, transcript chunks.
- * Module-level Map stays warm within a Vercel function instance (~5 min).
- * Good enough for a demo session. Not for production.
+ * Handles consent, gaze, tab-switch signals + candidate transcript delivery.
+ *
+ * Cross-instance problem: Netlify/Vercel serverless has multiple Lambda instances
+ * that don't share memory.  We solve this with a two-track transcript strategy:
+ *
+ *  1. CHUNK track  — real-time incremental chunks (fast, may miss on instance switch)
+ *  2. SNAPSHOT track — full accumulated transcript sent every ~10 s by candidate
+ *                      (survives instance switches; interviewer merges whichever is longer)
+ *
+ * The interviewer takes whichever delivers more text: snapshot or chunk reassembly.
  */
 
-const sessions = new Map(); // sessionId -> { flags, transcript_chunks: [] }
+const sessions = new Map(); // sessionId -> session object
 
 function getOrCreate(session) {
   if (!sessions.has(session)) {
-    sessions.set(session, { transcript_chunks: [] });
+    sessions.set(session, {
+      transcript_chunks: [],   // incremental chunks
+      transcript_snapshot: '', // full text snapshot, overwritten each heartbeat
+      snapshot_ts: 0,
+    });
     // Auto-cleanup after 6 hours
     setTimeout(() => sessions.delete(session), 6 * 60 * 60 * 1000);
   }
@@ -30,10 +41,15 @@ module.exports = async (req, res) => {
     const s = getOrCreate(session);
 
     if (type === 'transcript_chunk' && text && text.trim()) {
-      // Append candidate speech chunk — InterviewScreen polls and pulls these
+      // Real-time incremental chunk
       s.transcript_chunks.push({ text: text.trim(), ts: Date.now() });
-      // Cap at 500 chunks to avoid memory bloat
       if (s.transcript_chunks.length > 500) s.transcript_chunks.shift();
+
+    } else if (type === 'transcript_snapshot' && text) {
+      // Full accumulated transcript heartbeat — survives instance switches
+      s.transcript_snapshot = text;
+      s.snapshot_ts = Date.now();
+
     } else if (type) {
       // Boolean signal: consent_given, tab_switch, gaze_deviation etc.
       s[type] = true;
@@ -42,14 +58,16 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'GET') {
-    const s = sessions.get(session) || { transcript_chunks: [] };
+    const s = sessions.get(session) || { transcript_chunks: [], transcript_snapshot: '', snapshot_ts: 0 };
     const cursor = parseInt(req.query.cursor || '0', 10);
     const chunks = s.transcript_chunks.slice(cursor);
-    const { transcript_chunks, ...flags } = s;
+    const { transcript_chunks, transcript_snapshot, snapshot_ts, ...flags } = s;
     return res.status(200).json({
       ...flags,
       transcript_chunks: chunks,
       next_cursor: cursor + chunks.length,
+      transcript_snapshot,
+      snapshot_ts,
     });
   }
 

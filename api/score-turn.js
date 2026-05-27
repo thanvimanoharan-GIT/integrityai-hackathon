@@ -102,4 +102,12 @@ module.exports = async (req, res) => {
 
     const rawText = groqData.choices[0].message.content;
     const match = rawText.match(/\{[\s\S]*\}/);
-    if (!match) return res.status(200).jso
+    if (!match) return res.status(200).json({ suspicion_score: 30, flag: "none", note: "Could not parse response." });
+
+    const result = JSON.parse(match[0]);
+    return res.status(200).json(result);
+
+  } catch (err) {
+    return res.status(500).json({ detail: err.message });
+  }
+};
