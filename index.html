@@ -2208,4 +2208,83 @@ function CandidateMonitor({ sessionId }) {
           <div style={{background: gazeStatus==='AWAY'?'rgba(239,68,68,.15)':gazeStatus==='OK'?'rgba(16,185,129,.1)':'rgba(100,116,139,.1)',
             border:`1px solid ${gazeStatus==='AWAY'?'rgba(239,68,68,.4)':gazeStatus==='OK'?'rgba(16,185,129,.3)':'rgba(100,116,139,.3)'}`,
             borderRadius:6,padding:'4px 10px',fontSize:11,color:gazeStatus==='AWAY'?'#f87171':gazeStatus==='OK'?'#34d399':'#94a3b8',fontWeight:700}}>
-            {gazeStatus==='CALIBRATING'?'⏳ CALIBRATING GAZE...':gazeStatus==='OK'?'👁 GAZE OK':gazeStatus==='U
+function App() {
+  const params      = new URLSearchParams(window.location.search);
+  const isMonitor   = params.get('monitor') === '1';
+  const monitorSid  = params.get('session') || 'demo';
+
+  if (isMonitor) return <CandidateMonitor sessionId={monitorSid} />;
+
+  const [step,         setStep]         = useState('step1');
+  const [loadingStep,  setLoadingStep]  = useState(0);
+  const [loadError,    setLoadError]    = useState('');
+  const [qbResult,     setQbResult]     = useState(null);
+  const [filename,     setFilename]     = useState('');
+  const [role,         setRole]         = useState('');
+  const [company,      setCompany]      = useState('');
+  const [sessionId,    setSessionId]    = useState('');
+  const [resumeText,   setResumeText]   = useState('');
+  const [interviewData,setInterviewData]= useState(null);
+
+  const handleStart = async (file, roleVal, companyVal) => {
+    setLoadError('');
+    setRole(roleVal);
+    setCompany(companyVal);
+    setFilename(file.name);
+    setSessionId(genSessionId());
+    setStep('loading');
+    setLoadingStep(0);
+    try {
+      setLoadingStep(1);
+      const text = await parsePDF(file);
+      setResumeText(text);
+      setLoadingStep(2);
+      const result = await generateQuestions(text, roleVal, companyVal);
+      setLoadingStep(3);
+      setQbResult(result);
+      setStep('step3');
+    } catch (err) {
+      setLoadError(err.message || 'Something went wrong. Please try again.');
+      setStep('step1');
+    }
+  };
+
+  const handleReset = () => {
+    setStep('step1');
+    setQbResult(null);
+    setFilename('');
+    setRole('');
+    setCompany('');
+    setSessionId('');
+    setResumeText('');
+    setInterviewData(null);
+    setLoadError('');
+  };
+
+  const stepNum = step==='step1'?1 : step==='loading'?2 : step==='step3'?3 : step==='interview'?4 : step==='report'?5 : 1;
+
+  let content = null;
+  if (step === 'step1')     content = <Step1 onStart={handleStart} error={loadError} />;
+  else if (step === 'loading')   content = <Step2 loadingStep={loadingStep} />;
+  else if (step === 'step3')     content = <Step3 result={qbResult} filename={filename} role={role} company={company} onReset={handleReset} onStartInterview={() => setStep('interview')} />;
+  else if (step === 'interview') content = <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} careerAnalysis={qbResult.career_analysis || null} onEnd={(data) => { setInterviewData(data); setStep('report'); }} />;
+  else if (step === 'report')    content = <IntegrityReport result={qbResult} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={handleReset} />;
+
+  return (
+    <div className="shell">
+      <Topbar step={stepNum} />
+      <div className="main">
+        <Steps current={stepNum} />
+        {content}
+      </div>
+    </div>
+  );
+}
+
+
+var _fb = document.getElementById('fallback'); if (_fb) _fb.remove();
+const _root = ReactDOM.createRoot(document.getElementById('root'));
+_root.render(<App />);
+    </script>
+  </body>
+</html>
