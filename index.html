@@ -886,8 +886,9 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const [trapDeployed, setTrapDeployed]           = useState(false);
   const [trapBannerVisible, setTrapBannerVisible] = useState(false);
   const [isGeneratingTrap, setIsGeneratingTrap]   = useState(false);
-  const trapFiredRef = useRef(false); // fire only once per session
-  const turnCountRef = useRef(0);
+  const trapFiredRef    = useRef(false); // fire only once per session
+  const turnCountRef    = useRef(0);
+  const turnScoresRef   = useRef([]);    // mirror of turnScores state — read synchronously outside updaters
   // Timing refs
   const candidateTurnStartRef = useRef(null);
   const firstWordReceivedRef  = useRef(false);
@@ -1005,47 +1006,52 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
               setIsScoring(false);
               if (result && typeof result.suspicion_score === 'number') {
                 setLiveScore(result.suspicion_score);          // ← dashboard variable
+                const newEntry = {
+                  score:           result.suspicion_score,
+                  flag:            result.flag,
+                  note:            result.note,
+                  turn:            turnNum,
+                  latency_ms:      null,            // not measurable cross-machine yet
+                  silence_ms:      capturedSilence, // from Mac B → report layer
+                  gaze_deviations: capturedGaze,    // from Mac B → report layer
+                  answer_text:     gap,
+                };
+                // Pure updater — no side effects (React 18 Concurrent Mode can call updaters >1×)
                 setTurnScores(prev => {
-                  const updated = [...prev, {
-                    score:           result.suspicion_score,
-                    flag:            result.flag,
-                    note:            result.note,
-                    turn:            turnNum,
-                    latency_ms:      null,            // not measurable cross-machine yet
-                    silence_ms:      capturedSilence, // from Mac B → report layer
-                    gaze_deviations: capturedGaze,    // from Mac B → report layer
-                    answer_text:     gap,
-                  }];
+                  const updated = [...prev, newEntry];
                   // Mid-interview checkpoint save — survives tab crash
                   try { localStorage.setItem('integrity_midinterview_v2', JSON.stringify({ turnScores: updated, transcript: transcriptRef.current, sessionId, savedAt: Date.now() })); } catch(_e) {}
-                  // Dynamic Trap: fire once when 2 consecutive turns score > 55
-                  if (!trapFiredRef.current && updated.length >= 2) {
-                    const last2 = updated.slice(-2);
-                    if (last2[0].score > 55 && last2[1].score > 55) {
-                      trapFiredRef.current = true;
-                      const lastAnswers = last2.map(t => t.answer_text).filter(Boolean);
-                      const notes2 = last2.map(t => t.note).filter(Boolean).join('; ');
-                      setIsGeneratingTrap(true);
-                      generateTrap(lastAnswers, candidateName, resumeText ? resumeText.substring(0, 400) : '', notes2)
-                        .then(trap => {
-                          setIsGeneratingTrap(false);
-                          if (trap && trap.question) {
-                            setInjectedTraps(t => [{
-                              id: `trap-dynamic-${Date.now()}`,
-                              question: trap.question,
-                              trap_type: trap.trap_type || 'pressure',
-                              target: trap.target || '',
-                              category: 'trap', dynamic: true,
-                            }, ...t]);
-                            setTrapDeployed(true);
-                            setTrapBannerVisible(true);
-                            setRightTab('questions');
-                          }
-                        });
-                    }
-                  }
                   return updated;
                 });
+                // Trap check — runs OUTSIDE the updater using turnScoresRef mirror
+                const updatedScores = [...turnScoresRef.current, newEntry];
+                turnScoresRef.current = updatedScores;
+                // Dynamic Trap: fire once when 2 consecutive turns score > 55
+                if (!trapFiredRef.current && updatedScores.length >= 2) {
+                  const last2 = updatedScores.slice(-2);
+                  if (last2[0].score > 55 && last2[1].score > 55) {
+                    trapFiredRef.current = true;
+                    const lastAnswers = last2.map(t => t.answer_text).filter(Boolean);
+                    const notes2 = last2.map(t => t.note).filter(Boolean).join('; ');
+                    setIsGeneratingTrap(true);
+                    generateTrap(lastAnswers, candidateName, resumeText ? resumeText.substring(0, 400) : '', notes2)
+                      .then(trap => {
+                        setIsGeneratingTrap(false);
+                        if (trap && trap.question) {
+                          setInjectedTraps(t => [{
+                            id: `trap-dynamic-${Date.now()}`,
+                            question: trap.question,
+                            trap_type: trap.trap_type || 'pressure',
+                            target: trap.target || '',
+                            category: 'trap', dynamic: true,
+                          }, ...t]);
+                          setTrapDeployed(true);
+                          setTrapBannerVisible(true);
+                          setRightTab('questions');
+                        }
+                      });
+                  }
+                }
               }
             });
           }
@@ -1140,6 +1146,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     // Reset snapshot cursor so a fresh session doesn't replay old snapshots
     snapshotConsumedLenRef.current = 0;
     recordingStartTsRef.current    = Date.now(); // used to reject snapshots posted before this session
+    turnScoresRef.current          = [];          // reset mirror so trap check starts fresh
     // Start as INTERVIEWER — interviews begin with the interviewer asking the first question
     transcriptRef.current = '[INTERVIEWER]: ';
     speakerRef.current = 'interviewer';
@@ -1197,44 +1204,46 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           setIsScoring(false);
           if (result && typeof result.suspicion_score === 'number') {
             setLiveScore(result.suspicion_score);   // keep dashboard current on manual speaker switch
-            setTurnScores(prev => {
-              const updated = [...prev, {
-                score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum,
-                latency_ms: capturedLatency, silence_ms: capturedSilence,
-                gaze_deviations: gazeDeviations,   // total session gaze count at time of this turn
-                answer_text: capturedTurnText,
-              }];
-              // ── Dynamic Trap Trigger ──
-              // Fire once per session when 2 consecutive turns score > 55
-              if (!trapFiredRef.current && updated.length >= 2) {
-                const last2 = updated.slice(-2);
-                if (last2[0].score > 55 && last2[1].score > 55) {
-                  trapFiredRef.current = true;
-                  const lastAnswers = last2.map(t => t.answer_text).filter(Boolean);
-                  const notes = last2.map(t => t.note).filter(Boolean).join('; ');
-                  setIsGeneratingTrap(true);
-                  generateTrap(lastAnswers, candidateName, resumeText ? resumeText.substring(0, 400) : '', notes)
-                    .then(trap => {
-                      setIsGeneratingTrap(false);
-                      if (trap && trap.question) {
-                        const trapEntry = {
-                          id: `trap-dynamic-${Date.now()}`,
-                          question: trap.question,
-                          trap_type: trap.trap_type || 'pressure',
-                          target: trap.target || '',
-                          category: 'trap',
-                          dynamic: true,
-                        };
-                        setInjectedTraps(t => [trapEntry, ...t]);
-                        setTrapDeployed(true);
-                        setTrapBannerVisible(true);
-                        setRightTab('questions'); // auto-switch to questions tab
-                      }
-                    });
-                }
+            const newEntry = {
+              score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum,
+              latency_ms: capturedLatency, silence_ms: capturedSilence,
+              gaze_deviations: gazeDeviations,   // total session gaze count at time of this turn
+              answer_text: capturedTurnText,
+            };
+            // Pure updater — no side effects (React 18 Concurrent Mode can call updaters >1×)
+            setTurnScores(prev => [...prev, newEntry]);
+            // Trap check — runs OUTSIDE the updater using turnScoresRef mirror
+            const updatedScores = [...turnScoresRef.current, newEntry];
+            turnScoresRef.current = updatedScores;
+            // ── Dynamic Trap Trigger ──
+            // Fire once per session when 2 consecutive turns score > 55
+            if (!trapFiredRef.current && updatedScores.length >= 2) {
+              const last2 = updatedScores.slice(-2);
+              if (last2[0].score > 55 && last2[1].score > 55) {
+                trapFiredRef.current = true;
+                const lastAnswers = last2.map(t => t.answer_text).filter(Boolean);
+                const notes = last2.map(t => t.note).filter(Boolean).join('; ');
+                setIsGeneratingTrap(true);
+                generateTrap(lastAnswers, candidateName, resumeText ? resumeText.substring(0, 400) : '', notes)
+                  .then(trap => {
+                    setIsGeneratingTrap(false);
+                    if (trap && trap.question) {
+                      const trapEntry = {
+                        id: `trap-dynamic-${Date.now()}`,
+                        question: trap.question,
+                        trap_type: trap.trap_type || 'pressure',
+                        target: trap.target || '',
+                        category: 'trap',
+                        dynamic: true,
+                      };
+                      setInjectedTraps(t => [trapEntry, ...t]);
+                      setTrapDeployed(true);
+                      setTrapBannerVisible(true);
+                      setRightTab('questions'); // auto-switch to questions tab
+                    }
+                  });
               }
-              return updated;
-            });
+            }
           }
         });
       }
