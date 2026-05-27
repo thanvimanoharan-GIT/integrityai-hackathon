@@ -981,8 +981,12 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           // These replace the null/0 placeholders and give scoreTurn full context
           const snapGaze    = typeof data.snapshot_gaze       === 'number' ? data.snapshot_gaze       : 0;
           const snapSilence = typeof data.snapshot_silence_ms === 'number' ? data.snapshot_silence_ms : null;
+          // Zero out gaze count for first 30s of recording — candidate setup activity
+          // (looking around, adjusting camera) inflates gaze before any question is asked
+          const warmupElapsed = Date.now() - recordingStartTsRef.current;
+          const effectiveGaze = warmupElapsed < 30000 ? 0 : snapGaze;
 
-          if (gap && gap.split(' ').length >= 2) {
+          if (gap && gap.split(' ').length >= 10) { // min 10 words — filters pre-interview chit-chat
             // Flush any in-progress interviewer interim before inserting candidate block
             if (sessionFinalRef.current.trim()) {
               transcriptRef.current += sessionFinalRef.current;
@@ -1000,7 +1004,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
             turnCountRef.current += 1;
             const turnNum    = turnCountRef.current;
             const capturedSilence = snapSilence;  // named capture for turnScores entry
-            const capturedGaze    = snapGaze;
+            const capturedGaze    = effectiveGaze;  // 0 during 30s warmup period
             setIsScoring(true);
             scoreTurn(gap, turnNum, null, capturedSilence, capturedGaze).then(result => {
               setIsScoring(false);
