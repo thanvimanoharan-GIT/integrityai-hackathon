@@ -914,7 +914,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const isSwitchingRef        = useRef(false); // guards onresult/onend race on speaker switch
   const interimRef            = useRef('');    // mirrors interim state for sync access in switchSpeaker
   const transcriptCursorRef    = useRef(0);   // cursor for signal API (kept for GET param)
-  const snapshotConsumedLenRef = useRef(0);   // chars of transcript_snapshot already consumed (prevents re-insertion)
+  const snapshotConsumedLenRef  = useRef(0);   // chars of transcript_snapshot already consumed (prevents re-insertion)
+  const recordingStartTsRef    = useRef(0);   // epoch ms when startRecording() was called — rejects stale snapshots
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -966,8 +967,12 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         // Mac B sends full accumulated candidate speech every 10s.
         // snapshotConsumedLenRef tracks how many chars we've already processed
         // so we only act on the NEW text in each snapshot.
-        const snap = data.transcript_snapshot || '';
-        if (snap.length > snapshotConsumedLenRef.current) {
+        const snap    = data.transcript_snapshot || '';
+        const snapTs  = data.snapshot_ts || 0;
+        // Reject snapshots posted before this recording session started (stale Lambda data)
+        if (snapTs > 0 && snapTs < recordingStartTsRef.current) {
+          snapshotConsumedLenRef.current = snap.length; // advance cursor so stale text is skipped
+        } else if (snap.length > snapshotConsumedLenRef.current) {
           const gap = snap.slice(snapshotConsumedLenRef.current).trim();
           snapshotConsumedLenRef.current = snap.length;
 
@@ -1132,6 +1137,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     if (!hasSR) { alert('Live transcription requires Google Chrome. Please open this page in Chrome.'); return; }
     // Reset snapshot cursor so a fresh session doesn't replay old snapshots
     snapshotConsumedLenRef.current = 0;
+    recordingStartTsRef.current    = Date.now(); // used to reject snapshots posted before this session
     // Start as INTERVIEWER — interviews begin with the interviewer asking the first question
     transcriptRef.current = '[INTERVIEWER]: ';
     speakerRef.current = 'interviewer';
