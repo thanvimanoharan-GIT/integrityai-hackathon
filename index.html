@@ -971,6 +971,11 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           const gap = snap.slice(snapshotConsumedLenRef.current).trim();
           snapshotConsumedLenRef.current = snap.length;
 
+          // Read behavioral signals sent by Mac B alongside snapshot
+          // These replace the null/0 placeholders and give scoreTurn full context
+          const snapGaze    = typeof data.snapshot_gaze       === 'number' ? data.snapshot_gaze       : 0;
+          const snapSilence = typeof data.snapshot_silence_ms === 'number' ? data.snapshot_silence_ms : null;
+
           if (gap && gap.split(' ').length >= 2) {
             // Flush any in-progress interviewer interim before inserting candidate block
             if (sessionFinalRef.current.trim()) {
@@ -982,19 +987,29 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
             setCurrentSpeaker('interviewer');
             setDisplayText(transcriptRef.current);
 
-            // Score the candidate turn → update liveScore dashboard
-            // liveScore is the single variable driving the meter; only set here (snapshot path)
+            // Score using full behavioral context from Mac B:
+            //   latency_ms   → null (requires Mac A to signal question-end to Mac B — future work)
+            //   silence_ms   → snapSilence (longest gap between recognition results on Mac B)
+            //   gaze_count   → snapGaze   (gaze-away count accumulated on Mac B)
             turnCountRef.current += 1;
-            const turnNum = turnCountRef.current;
+            const turnNum    = turnCountRef.current;
+            const capturedSilence = snapSilence;  // named capture for turnScores entry
+            const capturedGaze    = snapGaze;
             setIsScoring(true);
-            scoreTurn(gap, turnNum, null, null, gazeDeviations).then(result => {
+            scoreTurn(gap, turnNum, null, capturedSilence, capturedGaze).then(result => {
               setIsScoring(false);
               if (result && typeof result.suspicion_score === 'number') {
                 setLiveScore(result.suspicion_score);          // ← dashboard variable
                 setTurnScores(prev => {
                   const updated = [...prev, {
-                    score: result.suspicion_score, flag: result.flag, note: result.note,
-                    turn: turnNum, latency_ms: null, silence_ms: null, answer_text: gap,
+                    score:           result.suspicion_score,
+                    flag:            result.flag,
+                    note:            result.note,
+                    turn:            turnNum,
+                    latency_ms:      null,            // not measurable cross-machine yet
+                    silence_ms:      capturedSilence, // from Mac B → report layer
+                    gaze_deviations: capturedGaze,    // from Mac B → report layer
+                    answer_text:     gap,
                   }];
                   // Dynamic Trap: fire once when 2 consecutive turns score > 55
                   if (!trapFiredRef.current && updated.length >= 2) {
@@ -1178,6 +1193,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
               const updated = [...prev, {
                 score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum,
                 latency_ms: capturedLatency, silence_ms: capturedSilence,
+                gaze_deviations: gazeDeviations,   // total session gaze count at time of this turn
                 answer_text: capturedTurnText,
               }];
               // ── Dynamic Trap Trigger ──
@@ -1871,11 +1887,11 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
                 </div>
                 {t.flag && t.flag !== 'none' && <div style={{fontSize:11,color:'#64748b',marginBottom:2}}>🚩 {t.flag.replace(/_/g,' ')}</div>}
                 {t.note && <div style={{fontSize:12,color:'#475569',fontStyle:'italic'}}>"{t.note}"</div>}
-                {(t.latency_ms || t.silence_ms) && (
-                  <div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>
-                    {t.latency_ms ? `⏱ Latency: ${(t.latency_ms/1000).toFixed(1)}s` : ''}
-                    {t.latency_ms && t.silence_ms ? ' · ' : ''}
-                    {t.silence_ms ? `Longest silence: ${(t.silence_ms/1000).toFixed(1)}s` : ''}
+                {(t.latency_ms || t.silence_ms || t.gaze_deviations) && (
+                  <div style={{fontSize:11,color:'#94a3b8',marginTop:3,display:'flex',gap:8,flexWrap:'wrap'}}>
+                    {t.latency_ms != null  && <span>⏱ Latency: {(t.latency_ms/1000).toFixed(1)}s</span>}
+                    {t.silence_ms != null  && <span>🔇 Longest silence: {(t.silence_ms/1000).toFixed(1)}s</span>}
+                    {t.gaze_deviations > 0 && <span>👁 Gaze away: {t.gaze_deviations}×</span>}
                   </div>
                 )}
               </div>
@@ -2077,18 +2093,32 @@ function CandidateMonitor({ sessionId }) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     candActiveRef.current = true;
 
-    // Running accumulator — used for snapshot heartbeat (cross-instance reliability fix)
-    let accumulated = '';
+    // Running accumulator for snapshot heartbeat
+    let accumulated    = '';
     let lastSnapshotTs = 0;
+
+    // Behavioral signal tracking — measured on Mac B, sent alongside snapshot
+    // longestSilenceMs: longest gap between consecutive speech recognition results
+    //   (reset after each snapshot so it reflects the CURRENT unsent speaking turn)
+    // lastResultTs: timestamp of most recent onresult call (used to calc gaps)
+    let longestSilenceMs = 0;
+    let lastResultTs     = 0;
 
     const postSnapshot = () => {
       if (!accumulated.trim()) return;
       fetch('/api/signal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session: sessionId, type: 'transcript_snapshot', text: accumulated })
+        body: JSON.stringify({
+          session:             sessionId,
+          type:                'transcript_snapshot',
+          text:                accumulated,
+          gaze_count:          gazeCountRef.current,   // total gaze-away events since consent
+          longest_silence_ms:  longestSilenceMs,        // longest gap in current unsent turn
+        })
       }).catch(() => {});
-      lastSnapshotTs = Date.now();
+      lastSnapshotTs   = Date.now();
+      longestSilenceMs = 0; // reset — next turn starts fresh
     };
 
     const startRec = () => {
@@ -2098,6 +2128,15 @@ function CandidateMonitor({ sessionId }) {
       rec.interimResults = false;
       rec.lang           = 'en-US';
       rec.onresult = (e) => {
+        const now = Date.now();
+
+        // Measure silence gap between consecutive finals
+        if (lastResultTs > 0) {
+          const gap = now - lastResultTs;
+          if (gap > longestSilenceMs) longestSilenceMs = gap;
+        }
+        lastResultTs = now;
+
         let text = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           if (e.results[i].isFinal) text += e.results[i][0].transcript + ' ';
@@ -2105,15 +2144,12 @@ function CandidateMonitor({ sessionId }) {
         if (text.trim()) {
           accumulated += text;
 
-          // Primary — snapshot heartbeat every 10s: full accumulated text → Mac A
-          // Mac A interviewer polls signal API every 2s, detects new snapshot text,
-          // inserts [CANDIDATE] block, fires scoreTurn → setLiveScore → dashboard refresh
+          // Snapshot heartbeat every 10s → Mac A detects gap, fires scoreTurn + setLiveScore
           if (Date.now() - lastSnapshotTs > 10000) postSnapshot();
         }
       };
       rec.onend  = () => {
-        // Also fire a snapshot when recognition ends (catches any unsent accumulation)
-        postSnapshot();
+        postSnapshot(); // flush any unsent accumulation when recognition pauses
         if (candActiveRef.current) setTimeout(startRec, 300);
       };
       rec.onerror = () => {};
@@ -2122,7 +2158,7 @@ function CandidateMonitor({ sessionId }) {
     };
     startRec();
 
-    // Send final snapshot on unmount
+    // Final flush on unmount
     return () => {
       candActiveRef.current = false;
       postSnapshot();
@@ -2172,39 +2208,4 @@ function CandidateMonitor({ sessionId }) {
           <div style={{background: gazeStatus==='AWAY'?'rgba(239,68,68,.15)':gazeStatus==='OK'?'rgba(16,185,129,.1)':'rgba(100,116,139,.1)',
             border:`1px solid ${gazeStatus==='AWAY'?'rgba(239,68,68,.4)':gazeStatus==='OK'?'rgba(16,185,129,.3)':'rgba(100,116,139,.3)'}`,
             borderRadius:6,padding:'4px 10px',fontSize:11,color:gazeStatus==='AWAY'?'#f87171':gazeStatus==='OK'?'#34d399':'#94a3b8',fontWeight:700}}>
-            {gazeStatus==='CALIBRATING'?'⏳ CALIBRATING GAZE...':gazeStatus==='OK'?'👁 GAZE OK':gazeStatus==='UNAVAILABLE'?'👁 GAZE N/A':`👁 GAZE AWAY (${gazeCount}x)`}
-          </div>
-          {tabCount > 0 && (
-            <div style={{background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.4)',borderRadius:6,padding:'4px 10px',fontSize:11,color:'#f87171',fontWeight:700}}>
-              {tabCount} tab switch{tabCount !== 1 ? 'es' : ''} logged
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{background:'rgba(5,150,105,.1)',borderBottom:'1px solid rgba(5,150,105,.2)',padding:'8px 20px',fontSize:12,color:'#34d399',textAlign:'center'}}>
-        ✓ Consent recorded — keep this tab visible throughout the interview
-      </div>
-      <div style={{background:'rgba(0,0,0,.3)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 20px',fontSize:11,color:'#64748b',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span>Video call below — or open in a new tab for full screen</span>
-        <a href="https://whereby.com/integrityai-demo" target="_blank" rel="noopener noreferrer"
-          style={{color:'#818cf8',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:12}}>
-          ↗ Open video call in new tab
-        </a>
-      </div>
-      <div style={{flex:1}}>
-        <iframe src={wherebyUrl} style={{width:'100%',height:'100%',border:'none',minHeight:'calc(100vh - 120px)'}}
-          allow="camera; microphone; fullscreen; speaker; display-capture" allowFullScreen />
-      </div>
-    </div>
-  );
-}
-
-// ── Root App ──────────────────────────────────────────────────────────────────
-function App() {
-  const params      = new URLSearchParams(window.location.search);
-  const isMonitor   = params.get('monitor') === '1';
-  const monitorSid  = params.get('session') || 'demo';
-
-  if (isMonitor) return <CandidateMonitor sessionId={monitorSid} />;
-
- 
+            {gazeStatus==='CALIBRATING'?'⏳ CALIBRATING GAZE...':gazeStatus==='OK'?'👁 GAZE OK':gazeStatus==='U
