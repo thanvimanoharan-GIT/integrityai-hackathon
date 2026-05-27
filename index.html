@@ -1016,6 +1016,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
                     gaze_deviations: capturedGaze,    // from Mac B → report layer
                     answer_text:     gap,
                   }];
+                  // Mid-interview checkpoint save — survives tab crash
+                  try { localStorage.setItem('integrity_midinterview_v2', JSON.stringify({ turnScores: updated, transcript: transcriptRef.current, sessionId, savedAt: Date.now() })); } catch(_e) {}
                   // Dynamic Trap: fire once when 2 consecutive turns score > 55
                   if (!trapFiredRef.current && updated.length >= 2) {
                     const last2 = updated.slice(-2);
@@ -2242,6 +2244,20 @@ function CandidateMonitor({ sessionId }) {
 }
 
 // ── Root App ──────────────────────────────────────────────────────────────────
+// ── Session persistence ──────────────────────────────────────────────────────
+// Saves report + question bank to localStorage so a crashed/closed tab can
+// be restored. Key is versioned so stale shapes don't cause parse errors.
+const INTEGRITY_SAVE_KEY = 'integrity_session_v2';
+function saveSession(data) {
+  try { localStorage.setItem(INTEGRITY_SAVE_KEY, JSON.stringify(data)); } catch(_e) {}
+}
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(INTEGRITY_SAVE_KEY) || 'null'); } catch(_e) { return null; }
+}
+function clearSession() {
+  try { localStorage.removeItem(INTEGRITY_SAVE_KEY); } catch(_e) {}
+}
+
 function App() {
   const params      = new URLSearchParams(window.location.search);
   const isMonitor   = params.get('monitor') === '1';
@@ -2249,16 +2265,21 @@ function App() {
 
   if (isMonitor) return <CandidateMonitor sessionId={monitorSid} />;
 
-  const [step,         setStep]         = useState('step1');
+  // ── Restore from localStorage if previous session was saved ──────────────
+  const _saved = React.useMemo(() => loadSession(), []);
+  const _hasReport = _saved && _saved.interviewData && _saved.qbResult;
+
+  const [step,         setStep]         = useState(_hasReport ? 'report' : 'step1');
   const [loadingStep,  setLoadingStep]  = useState(0);
   const [loadError,    setLoadError]    = useState('');
-  const [qbResult,     setQbResult]     = useState(null);
-  const [filename,     setFilename]     = useState('');
-  const [role,         setRole]         = useState('');
-  const [company,      setCompany]      = useState('');
-  const [sessionId,    setSessionId]    = useState('');
+  const [qbResult,     setQbResult]     = useState(_hasReport ? _saved.qbResult     : null);
+  const [filename,     setFilename]     = useState(_hasReport ? (_saved.filename||'') : '');
+  const [role,         setRole]         = useState(_hasReport ? (_saved.role||'')     : '');
+  const [company,      setCompany]      = useState(_hasReport ? (_saved.company||'')  : '');
+  const [sessionId,    setSessionId]    = useState(_hasReport ? (_saved.sessionId||''): '');
   const [resumeText,   setResumeText]   = useState('');
-  const [interviewData,setInterviewData]= useState(null);
+  const [interviewData,setInterviewData]= useState(_hasReport ? _saved.interviewData : null);
+  const [sessionRestored, setSessionRestored] = useState(_hasReport);
 
   const handleStart = async (file, roleVal, companyVal) => {
     setLoadError('');
@@ -2284,6 +2305,7 @@ function App() {
   };
 
   const handleReset = () => {
+    clearSession();           // wipe saved session on intentional reset
     setStep('step1');
     setQbResult(null);
     setFilename('');
@@ -2293,6 +2315,7 @@ function App() {
     setResumeText('');
     setInterviewData(null);
     setLoadError('');
+    setSessionRestored(false);
   };
 
   const stepNum = step==='step1'?1 : step==='loading'?2 : step==='step3'?3 : step==='interview'?4 : step==='report'?5 : 1;
@@ -2301,8 +2324,22 @@ function App() {
   if (step === 'step1')     content = <Step1 onStart={handleStart} error={loadError} />;
   else if (step === 'loading')   content = <Step2 loadingStep={loadingStep} />;
   else if (step === 'step3')     content = <Step3 result={qbResult} filename={filename} role={role} company={company} onReset={handleReset} onStartInterview={() => setStep('interview')} />;
-  else if (step === 'interview') content = <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} careerAnalysis={qbResult.career_analysis || null} onEnd={(data) => { setInterviewData(data); setStep('report'); }} />;
-  else if (step === 'report')    content = <IntegrityReport result={qbResult} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={handleReset} />;
+  else if (step === 'interview') content = <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} careerAnalysis={qbResult.career_analysis || null} onEnd={(data) => {
+              setInterviewData(data);
+              setStep('report');
+              // Persist immediately so a page close doesn't lose the report
+              saveSession({ interviewData: data, qbResult, role, company, sessionId, filename, savedAt: Date.now() });
+            }} />;
+  else if (step === 'report')    content = <>
+    {sessionRestored && (
+      <div style={{background:'rgba(99,102,241,.12)',border:'1px solid rgba(99,102,241,.3)',borderRadius:8,padding:'8px 16px',
+        fontSize:12,color:'#a5b4fc',marginBottom:12,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <span>🔄 Session restored from previous run — report data recovered.</span>
+        <button onClick={()=>setSessionRestored(false)} style={{background:'none',border:'none',color:'#6366f1',cursor:'pointer',fontSize:14,lineHeight:1}}>✕</button>
+      </div>
+    )}
+    <IntegrityReport result={qbResult} interviewData={interviewData} role={role} company={company} sessionId={sessionId} onReset={handleReset} />
+  </>;
 
   return (
     <div className="shell">
