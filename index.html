@@ -278,6 +278,31 @@
     .monitor-url-lbl { font-size: 10px; font-weight: 700; letter-spacing: .6px; color: #10b981; margin-bottom: 8px; }
 
 
+    /* Live suspicion meter — shown during recording, updated every ~10s from snapshot */
+    .susp-panel { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; padding: 16px 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .susp-left  { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+    .susp-lbl   { font-size: 10px; font-weight: 700; letter-spacing: .7px; color: #475569; }
+    .susp-score { font-size: 38px; font-weight: 800; line-height: 1; }
+    .susp-score.low    { color: #10b981; }
+    .susp-score.medium { color: #fbbf24; }
+    .susp-score.high   { color: #ef4444; }
+    .susp-score.idle   { color: #2d3446; }
+    .susp-risk-lbl { font-size: 11px; font-weight: 700; letter-spacing: .4px; }
+    .susp-risk-lbl.low    { color: #10b981; }
+    .susp-risk-lbl.medium { color: #fbbf24; }
+    .susp-risk-lbl.high   { color: #ef4444; }
+    .susp-risk-lbl.idle   { color: #2d3446; }
+    .susp-center { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
+    .susp-track { width: 100%; height: 10px; background: #1e2330; border-radius: 5px; overflow: hidden; }
+    .susp-fill  { height: 100%; border-radius: 5px; transition: width .7s ease, background .7s ease; }
+    .susp-fill.low    { background: linear-gradient(90deg,#059669,#10b981); }
+    .susp-fill.medium { background: linear-gradient(90deg,#d97706,#fbbf24); }
+    .susp-fill.high   { background: linear-gradient(90deg,#dc2626,#ef4444); }
+    .susp-fill.idle   { background: #1e2330; }
+    .susp-note  { font-size: 12px; color: #94a3b8; line-height: 1.5; font-style: italic; }
+    .susp-hint  { font-size: 11px; color: #2d3446; line-height: 1.5; }
+    .susp-scoring { font-size: 12px; color: #6366f1; font-weight: 600; animation: blink .7s ease-in-out infinite alternate; }
+
     /* Right panel tabs */
     .right-panel-tabbed { background: #12151d; border: 1px solid #1e2330; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; height: 100%; }
     .rpt-tabs { display: flex; border-bottom: 1px solid #1e2330; }
@@ -848,6 +873,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const [currentSpeaker, setCurrentSpeaker] = useState('candidate');
   const [turnScores, setTurnScores]         = useState([]); // [{score, flag, note}]
   const [isScoring, setIsScoring]           = useState(false);
+  const [liveScore, setLiveScore]           = useState(null); // set by snapshot scoring (every ~10s from Mac B)
   const [askedIds, setAskedIds]             = useState(new Set());
   const [notes, setNotes]                   = useState('');
   const [analyseError, setAnalyseError]     = useState('');
@@ -887,10 +913,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const switchSpeakerRef      = useRef(null); // always points to latest switchSpeaker fn
   const isSwitchingRef        = useRef(false); // guards onresult/onend race on speaker switch
   const interimRef            = useRef('');    // mirrors interim state for sync access in switchSpeaker
-  const candTxLastLenRef      = useRef(0);     // bytes of integrity_candtx_SESSION already consumed
-  const transcriptCursorRef    = useRef(0);   // cursor for signal API transcript chunk polling (cross-machine)
-  const localTxActiveRef       = useRef(false); // true once localStorage path has delivered candidate text (same-machine)
-  const snapshotConsumedLenRef = useRef(0);   // chars of transcript_snapshot already inserted (dedup across snapshots)
+  const transcriptCursorRef    = useRef(0);   // cursor for signal API (kept for GET param)
+  const snapshotConsumedLenRef = useRef(0);   // chars of transcript_snapshot already consumed (prevents re-insertion)
   // ONE link for candidate — video call + tab monitoring
   const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
 
@@ -922,152 +946,95 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     return () => { try { bc?.close(); } catch(e) {} };
   }, [sessionId]);
 
-  // Cross-machine signal poll — consent + transcript from candidate device (every 2s)
-  // Uses two tracks to survive Netlify serverless instance switches:
-  //   CHUNK track   — real-time incremental (cursor-based)
-  //   SNAPSHOT track — full accumulated text sent every 10s by candidate (fills gaps)
+  // Cross-machine signal poll — runs every 2s on Mac A (interviewer)
+  // Architecture: Mac A mic → interviewer speech only
+  //               Mac B mic → candidate speech → snapshot POST every 10s → signal API
+  // This poller picks up consent + the candidate snapshot and fires scoring → liveScore dashboard
   useEffect(() => {
     const id = setInterval(async () => {
       try {
-        const cursor = transcriptCursorRef.current;
-        const res = await fetch(`/api/signal?session=${sessionId}&cursor=${cursor}`);
+        const res = await fetch(`/api/signal?session=${sessionId}&cursor=0`);
         if (!res.ok) return;
         const data = await res.json();
 
-        // Consent
+        // Consent signal from Mac B
         if (data.consent_given) { setConsentReady(true); setConsentAuto(true); }
 
-        // Skip transcript tracks if same-machine localStorage already delivering (avoids duplicates)
-        if (localTxActiveRef.current || !isRecordingRef.current) return;
+        if (!isRecordingRef.current) return;
 
-        const insertCandidateText = (newText) => {
-          if (!newText || newText.split(' ').length < 2) return;
-          if (sessionFinalRef.current.trim()) {
-            transcriptRef.current += sessionFinalRef.current;
-            sessionFinalRef.current = '';
-          }
-          transcriptRef.current += '\n[CANDIDATE]: ' + newText + '\n[INTERVIEWER]: ';
-          speakerRef.current = 'interviewer';
-          setCurrentSpeaker('interviewer');
-          setDisplayText(transcriptRef.current);
-          if (newText.split(' ').length >= 5) {
-            turnCountRef.current += 1;
-            const turnNum = turnCountRef.current;
-            setIsScoring(true);
-            scoreTurn(newText, turnNum, null, null, gazeDeviations).then(result => {
-              setIsScoring(false);
-              if (result && typeof result.suspicion_score === 'number') {
-                setTurnScores(prev => [...prev, {
-                  score: result.suspicion_score, flag: result.flag, note: result.note,
-                  turn: turnNum, latency_ms: null, silence_ms: null, answer_text: newText,
-                }]);
-              }
-            });
-          }
-        };
-
-        // CHUNK track — deliver new real-time chunks
-        if (data.transcript_chunks && data.transcript_chunks.length > 0) {
-          transcriptCursorRef.current = data.next_cursor;
-          const newText = data.transcript_chunks.map(c => c.text).join(' ').trim();
-          insertCandidateText(newText);
-        }
-
-        // SNAPSHOT track — fill any gaps caused by instance switches
-        // Only consume text beyond what we've already seen from this snapshot
+        // ── SNAPSHOT TRACK ──────────────────────────────────────────────────────
+        // Mac B sends full accumulated candidate speech every 10s.
+        // snapshotConsumedLenRef tracks how many chars we've already processed
+        // so we only act on the NEW text in each snapshot.
         const snap = data.transcript_snapshot || '';
         if (snap.length > snapshotConsumedLenRef.current) {
           const gap = snap.slice(snapshotConsumedLenRef.current).trim();
           snapshotConsumedLenRef.current = snap.length;
+
           if (gap && gap.split(' ').length >= 2) {
-            insertCandidateText(gap);
+            // Flush any in-progress interviewer interim before inserting candidate block
+            if (sessionFinalRef.current.trim()) {
+              transcriptRef.current += sessionFinalRef.current;
+              sessionFinalRef.current = '';
+            }
+            transcriptRef.current += '\n[CANDIDATE]: ' + gap + '\n[INTERVIEWER]: ';
+            speakerRef.current = 'interviewer';
+            setCurrentSpeaker('interviewer');
+            setDisplayText(transcriptRef.current);
+
+            // Score the candidate turn → update liveScore dashboard
+            // liveScore is the single variable driving the meter; only set here (snapshot path)
+            turnCountRef.current += 1;
+            const turnNum = turnCountRef.current;
+            setIsScoring(true);
+            scoreTurn(gap, turnNum, null, null, gazeDeviations).then(result => {
+              setIsScoring(false);
+              if (result && typeof result.suspicion_score === 'number') {
+                setLiveScore(result.suspicion_score);          // ← dashboard variable
+                setTurnScores(prev => {
+                  const updated = [...prev, {
+                    score: result.suspicion_score, flag: result.flag, note: result.note,
+                    turn: turnNum, latency_ms: null, silence_ms: null, answer_text: gap,
+                  }];
+                  // Dynamic Trap: fire once when 2 consecutive turns score > 55
+                  if (!trapFiredRef.current && updated.length >= 2) {
+                    const last2 = updated.slice(-2);
+                    if (last2[0].score > 55 && last2[1].score > 55) {
+                      trapFiredRef.current = true;
+                      const lastAnswers = last2.map(t => t.answer_text).filter(Boolean);
+                      const notes2 = last2.map(t => t.note).filter(Boolean).join('; ');
+                      setIsGeneratingTrap(true);
+                      generateTrap(lastAnswers, candidateName, resumeText ? resumeText.substring(0, 400) : '', notes2)
+                        .then(trap => {
+                          setIsGeneratingTrap(false);
+                          if (trap && trap.question) {
+                            setInjectedTraps(t => [{
+                              id: `trap-dynamic-${Date.now()}`,
+                              question: trap.question,
+                              trap_type: trap.trap_type || 'pressure',
+                              target: trap.target || '',
+                              category: 'trap', dynamic: true,
+                            }, ...t]);
+                            setTrapDeployed(true);
+                            setTrapBannerVisible(true);
+                            setRightTab('questions');
+                          }
+                        });
+                    }
+                  }
+                  return updated;
+                });
+              }
+            });
           }
         }
       } catch {}
     }, 2000);
     return () => clearInterval(id);
-  }, [sessionId]);
-
-  // Candidate transcript poller — picks up speech captured on the candidate's own device
-  // CandidateMonitor pushes finals to localStorage key: integrity_candtx_SESSION
-  // We read it every 500ms and insert new text live into the interview transcript
-  useEffect(() => {
-    const pollId = setInterval(() => {
-      if (!isRecordingRef.current) return;
-      try {
-        // Read gaze deviations reported by candidate device
-        const gazeKey = 'integrity_gaze_' + sessionId;
-        const remoteGaze = parseInt(localStorage.getItem(gazeKey) || '0', 10);
-        if (remoteGaze > remoteGazeCountRef.current) {
-          const delta = remoteGaze - remoteGazeCountRef.current;
-          remoteGazeCountRef.current = remoteGaze;
-          setGazeDeviations(prev => prev + delta);
-        }
-      } catch {}
-      try {
-        const key = 'integrity_candtx_' + sessionId;
-        const full = localStorage.getItem(key) || '';
-        if (full.length <= candTxLastLenRef.current) return;
-        const newText = full.slice(candTxLastLenRef.current).trim();
-        candTxLastLenRef.current = full.length;
-        if (!newText) return;
-
-        // Mark that the local path is active — prevents signal API from double-inserting same text
-        localTxActiveRef.current = true;
-
-        // Commit any in-progress interviewer speech first (so we don't interleave)
-        if (sessionFinalRef.current.trim()) {
-          transcriptRef.current += sessionFinalRef.current;
-          sessionFinalRef.current = '';
-        }
-        // Insert candidate block — close with newline so next interviewer label is on its own line
-        transcriptRef.current += '\n[CANDIDATE]: ' + newText + '\n[INTERVIEWER]: ';
-        speakerRef.current = 'interviewer';
-        setCurrentSpeaker('interviewer');
-        setDisplayText(transcriptRef.current);
-
-        // Score this candidate turn if it's long enough
-        if (newText.split(' ').length >= 5) {
-          turnCountRef.current += 1;
-          const turnNum = turnCountRef.current;
-          setIsScoring(true);
-          scoreTurn(newText, turnNum, null, null, gazeDeviations).then(result => {
-            setIsScoring(false);
-            if (result && typeof result.suspicion_score === 'number') {
-              setTurnScores(prev => {
-                const updated = [...prev, {
-                  score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum,
-                  latency_ms: null, silence_ms: null, answer_text: newText,
-                }];
-                // Dynamic Trap: 2 consecutive turns > 55
-                if (!trapFiredRef.current && updated.length >= 2) {
-                  const last2 = updated.slice(-2);
-                  if (last2[0].score > 55 && last2[1].score > 55) {
-                    trapFiredRef.current = true;
-                    const lastAnswers = last2.map(t => t.answer_text).filter(Boolean);
-                    const notes2 = last2.map(t => t.note).filter(Boolean).join('; ');
-                    setIsGeneratingTrap(true);
-                    generateTrap(lastAnswers, candidateName, resumeText ? resumeText.substring(0, 400) : '', notes2)
-                      .then(trap => {
-                        setIsGeneratingTrap(false);
-                        if (trap && trap.question) {
-                          setInjectedTraps(t => [{ id: `trap-dynamic-${Date.now()}`, question: trap.question, trap_type: trap.trap_type || 'pressure', target: trap.target || '', category: 'trap', dynamic: true }, ...t]);
-                          setTrapDeployed(true);
-                          setTrapBannerVisible(true);
-                          setRightTab('questions');
-                        }
-                      });
-                  }
-                }
-                return updated;
-              });
-            }
-          });
-        }
-      } catch(_e) { /* localStorage unavailable */ }
-    }, 500);
-    return () => clearInterval(pollId);
   }, [sessionId, candidateName, resumeText]);
+
+  // localStorage-based candidate transcript poller removed.
+  // Candidate speech now arrives exclusively via signal API snapshot (cross-machine, Mac B → Mac A).
 
   const startSpeech = () => {
     if (!isRecordingRef.current) return;
@@ -1148,9 +1115,8 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const startRecording = () => {
     const hasSR = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
     if (!hasSR) { alert('Live transcription requires Google Chrome. Please open this page in Chrome.'); return; }
-    // Clear any stale candidate transcript from a previous session
-    try { localStorage.removeItem('integrity_candtx_' + sessionId); } catch(_e) {}
-    candTxLastLenRef.current = 0;
+    // Reset snapshot cursor so a fresh session doesn't replay old snapshots
+    snapshotConsumedLenRef.current = 0;
     // Start as INTERVIEWER — interviews begin with the interviewer asking the first question
     transcriptRef.current = '[INTERVIEWER]: ';
     speakerRef.current = 'interviewer';
@@ -1207,6 +1173,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         scoreTurn(turnText, turnNum, capturedLatency, capturedSilence, gazeDeviations).then(result => {
           setIsScoring(false);
           if (result && typeof result.suspicion_score === 'number') {
+            setLiveScore(result.suspicion_score);   // keep dashboard current on manual speaker switch
             setTurnScores(prev => {
               const updated = [...prev, {
                 score: result.suspicion_score, flag: result.flag, note: result.note, turn: turnNum,
@@ -1279,6 +1246,10 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
     // Instead we keep recognition running continuously and only change the speaker label.
     // The onresult handler will attribute new finals to the current speakerRef value via transcriptRef.
   };
+
+  // Maps a suspicion score to a colour class (used by live meter + report dots)
+  const meterClass = (s) => s === null ? 'idle' : s <= 40 ? 'low' : s <= 70 ? 'medium' : 'high';
+  const riskLabel  = { low: 'LOW RISK', medium: 'MEDIUM RISK', high: 'HIGH RISK', idle: 'Waiting…' };
 
   const stopRecording = () => {
     isRecordingRef.current = false;
@@ -1504,6 +1475,45 @@ function AnalysingScreen({ analyseError }) {
         </div>
       )}
 
+
+      {/* Live Suspicion Meter — full-width, shown during recording, refreshed every ~10s from Mac B snapshot */}
+      {ivState === 'recording' && (() => {
+        const sc = meterClass(liveScore);
+        const lastTurn = turnScores.length > 0 ? turnScores[turnScores.length - 1] : null;
+        return (
+          <div className="susp-panel">
+            <div className="susp-left">
+              <div className="susp-lbl">📊 SUSPICION SCORE</div>
+              <div className={`susp-score ${sc}`}>
+                {isScoring ? '…' : liveScore !== null
+                  ? <>{liveScore}<span style={{fontSize:14,fontWeight:400,opacity:.7}}>/100</span></>
+                  : '—'}
+              </div>
+              <div style={{fontSize:10,color:'#64748b',marginBottom:2}}>0 = genuine · 100 = suspicious</div>
+              <div className={`susp-risk-lbl ${sc}`}>
+                {isScoring ? 'Scoring…' : riskLabel[sc]}
+              </div>
+            </div>
+            <div className="susp-center">
+              <div className="susp-track">
+                <div className={`susp-fill ${sc}`} style={{width: liveScore !== null ? `${liveScore}%` : '0%'}} />
+              </div>
+              <div style={{fontSize:10,color:'#475569',marginTop:4}}>
+                {turnScores.length > 0
+                  ? `${turnScores.length} candidate turn${turnScores.length > 1 ? 's' : ''} scored · updates every ~10s`
+                  : 'Score updates when first candidate snapshot arrives (~10s after speech)'}
+              </div>
+            </div>
+            {lastTurn && (
+              <div style={{display:'flex',flexDirection:'column',gap:5,maxWidth:260}}>
+                {isScoring
+                  ? <div className="susp-scoring">🔄 Analysing candidate response…</div>
+                  : <div className="susp-note">"{lastTurn.note}"</div>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Active interview body */}
       {ivState === 'recording' && (
@@ -2095,22 +2105,9 @@ function CandidateMonitor({ sessionId }) {
         if (text.trim()) {
           accumulated += text;
 
-          // Track 1 — real-time chunk (cross-machine, fast, may miss on instance switch)
-          fetch('/api/signal', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session: sessionId, type: 'transcript_chunk', text: text.trim() })
-          }).catch(() => {});
-
-          // Track 2 — localStorage (same-machine fallback, instant)
-          try {
-            const key = 'integrity_candtx_' + sessionId;
-            const existing = localStorage.getItem(key) || '';
-            localStorage.setItem(key, existing + text);
-          } catch(_e) {}
-
-          // Track 3 — snapshot heartbeat: send full accumulated text every 10s
-          // Survives Netlify instance switches — interviewer takes whichever is longer
+          // Primary — snapshot heartbeat every 10s: full accumulated text → Mac A
+          // Mac A interviewer polls signal API every 2s, detects new snapshot text,
+          // inserts [CANDIDATE] block, fires scoreTurn → setLiveScore → dashboard refresh
           if (Date.now() - lastSnapshotTs > 10000) postSnapshot();
         }
       };
@@ -2210,31 +2207,4 @@ function App() {
 
   if (isMonitor) return <CandidateMonitor sessionId={monitorSid} />;
 
-  const [step,         setStep]         = useState('step1');
-  const [loadingStep,  setLoadingStep]  = useState(0);
-  const [loadError,    setLoadError]    = useState('');
-  const [qbResult,     setQbResult]     = useState(null);
-  const [filename,     setFilename]     = useState('');
-  const [role,         setRole]         = useState('');
-  const [company,      setCompany]      = useState('');
-  const [sessionId,    setSessionId]    = useState('');
-  const [resumeText,   setResumeText]   = useState('');
-  const [interviewData,setInterviewData]= useState(null);
-
-  const handleStart = async (file, roleVal, companyVal) => {
-    setLoadError('');
-    setRole(roleVal);
-    setCompany(companyVal);
-    setFilename(file.name);
-    setSessionId(genSessionId());
-    setStep('loading');
-    setLoadingStep(0);
-    try {
-      setLoadingStep(1);
-      const text = await parsePDF(file);
-      setResumeText(text);
-      setLoadingStep(2);
-      const result = await generateQuestions(text, roleVal, companyVal);
-      setLoadingStep(3);
-      setQbResult(result);
-      s
+ 
