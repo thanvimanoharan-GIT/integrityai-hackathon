@@ -42,7 +42,7 @@ Respond ONLY with valid JSON, no markdown:
 {"question": "<the trap question — one sentence, sharp, direct>", "trap_type": "contradiction|specificity|simplicity|achievement_depth|pressure", "target": "<one sentence explaining what suspicious pattern this targets>"}`;
 
 module.exports = async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "https://integrityai-hackathon.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -97,7 +97,7 @@ Generate one targeted trap question to expose whether these answers are AI-assis
     }
 
     const rawText = groqData.choices[0].message.content;
-    const match = rawText.match(/\{[\s\S]*\}/);
+    const match = rawText.match(/\{[^}]*?\}/);
     if (!match) return res.status(200).json({
       question: "Stop — walk me through exactly what you did, step by step, in your own words. No frameworks, no buzzwords.",
       trap_type: "specificity",

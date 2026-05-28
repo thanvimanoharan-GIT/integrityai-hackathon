@@ -62,7 +62,7 @@ RESUME TO ANALYSE:
 
 module.exports = async (req, res) => {
   // CORS headers — allow any origin
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "https://integrityai-hackathon.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -141,7 +141,7 @@ module.exports = async (req, res) => {
 
     const rawText = groqData.choices[0].message.content;
 
-    const match = rawText.match(/\{[\s\S]*\}/);
+    const match = rawText.match(/\{[^}]*?\}/);
     if (!match) {
       return res.status(500).json({ detail: "Unexpected response format. Please try again." });
     }

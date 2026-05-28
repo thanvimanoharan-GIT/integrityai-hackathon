@@ -1,0 +1,404 @@
+<svg viewBox="0 0 1200 1060" xmlns="http://www.w3.org/2000/svg" font-family="Calibri, 'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00205B"/>
+      <stop offset="100%" style="stop-color:#1C4E96"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#007DC5"/>
+      <stop offset="100%" style="stop-color:#1C4E96"/>
+    </linearGradient>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#007DC5"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#63A70A"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FF6B00"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#D32F2F"/>
+    </marker>
+    <marker id="arrowNavy" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00205B"/>
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,32,91,0.12)"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="1060" fill="#F2F6FC"/>
+
+  <!-- ── Header ── -->
+  <rect x="0" y="0" width="1200" height="68" fill="url(#headerGrad)"/>
+  <text x="600" y="30" text-anchor="middle" font-size="22" font-weight="700" fill="white" letter-spacing="0.4">IntegrityAI — Interview Data Flow</text>
+  <text x="600" y="53" text-anchor="middle" font-size="13" fill="rgba(200,220,255,0.9)">End-to-End · 4 AI Reasoning Stages · Resume to Hire/No-Hire Decision · AOC Summer 2026 · B9</text>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PHASE SIDEBAR LABELS                                   -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- Phase 1 bar -->
+  <rect x="8" y="78" width="28" height="226" rx="6" fill="#007DC5"/>
+  <text x="22" y="282" text-anchor="middle" font-size="12" font-weight="700" fill="white" transform="rotate(-90,22,282)">① SETUP &amp; QUESTIONS</text>
+
+  <!-- Phase 2 bar -->
+  <rect x="8" y="316" width="28" height="186" rx="6" fill="#0082C3"/>
+  <text x="22" y="468" text-anchor="middle" font-size="12" font-weight="700" fill="white" transform="rotate(-90,22,468)">② INTERVIEW SETUP</text>
+
+  <!-- Phase 3 bar -->
+  <rect x="8" y="514" width="28" height="254" rx="6" fill="#1C4E96"/>
+  <text x="22" y="668" text-anchor="middle" font-size="12" font-weight="700" fill="white" transform="rotate(-90,22,668)">③ LIVE RECORDING &amp; SCORING</text>
+
+  <!-- Phase 4 bar -->
+  <rect x="8" y="780" width="28" height="256" rx="6" fill="#FF6B00"/>
+  <text x="22" y="938" text-anchor="middle" font-size="12" font-weight="700" fill="white" transform="rotate(-90,22,938)">④ INTEGRITY REPORT</text>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PHASE 1: SETUP & QUESTION GENERATION  y=78 → 304     -->
+  <!-- ══════════════════════════════════════════════════════ -->
+
+  <!-- Step 1a: Resume Upload -->
+  <rect x="44" y="84" width="196" height="92" rx="10" fill="white" stroke="#007DC5" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="44" y="84" width="196" height="6" rx="10" fill="#007DC5"/>
+  <text x="142" y="105" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Resume Upload</text>
+  <text x="142" y="122" text-anchor="middle" font-size="11" fill="#5A7A9A">PDF drag &amp; drop</text>
+  <text x="142" y="138" text-anchor="middle" font-size="11" fill="#5A7A9A">Keyword + length validation</text>
+  <text x="142" y="154" text-anchor="middle" font-size="11" fill="#5A7A9A">Frontend + API checks</text>
+  <text x="142" y="170" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="700">Privacy: never leaves browser</text>
+
+  <!-- Arrow → PDF Parser -->
+  <line x1="240" y1="130" x2="262" y2="130" stroke="#007DC5" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- Step 1b: PDF.js Parser -->
+  <rect x="264" y="84" width="200" height="92" rx="10" fill="white" stroke="#1C4E96" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="264" y="84" width="200" height="6" rx="10" fill="#1C4E96"/>
+  <text x="364" y="105" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">PDF.js Parser</text>
+  <text x="364" y="122" text-anchor="middle" font-size="11" fill="#5A7A9A">Mozilla PDF.js · Browser-side</text>
+  <text x="364" y="138" text-anchor="middle" font-size="11" fill="#5A7A9A">3-attempt fallback loop</text>
+  <text x="364" y="154" text-anchor="middle" font-size="11" fill="#5A7A9A">Standard → Lenient → Raw text</text>
+  <text x="364" y="170" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="700">Free · No server upload</text>
+
+  <!-- Arrow → AI Stage 1 -->
+  <line x1="464" y1="130" x2="486" y2="130" stroke="#007DC5" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- AI STAGE 1 highlighted box -->
+  <rect x="488" y="78" width="690" height="220" rx="12" fill="white" stroke="#007DC5" stroke-width="3" filter="url(#shadow)"/>
+  <rect x="488" y="78" width="690" height="40" rx="12" fill="url(#blueGrad)"/>
+  <rect x="488" y="106" width="690" height="12" fill="url(#blueGrad)"/>
+  <text x="688" y="96" text-anchor="middle" font-size="14" font-weight="700" fill="white">AI STAGE 1 — Question Engine</text>
+  <text x="858" y="96" text-anchor="middle" font-size="12" fill="rgba(200,220,255,0.9)">Groq · Llama 3.3 70B · ~5s</text>
+  <rect x="1088" y="81" width="82" height="24" rx="5" fill="rgba(255,255,255,0.2)"/>
+  <text x="1129" y="97" text-anchor="middle" font-size="11" fill="white" font-weight="700">/api/generate-questions</text>
+
+  <!-- 3 output boxes inside Stage 1 -->
+  <rect x="500" y="122" width="210" height="164" rx="8" fill="#EBF4FB" stroke="#007DC5" stroke-width="1.5"/>
+  <rect x="500" y="122" width="210" height="5" rx="8" fill="#007DC5"/>
+  <text x="605" y="141" text-anchor="middle" font-size="12" font-weight="700" fill="#00205B">Question Bank</text>
+  <text x="605" y="158" text-anchor="middle" font-size="11" fill="#5A7A9A">15–20 personalised questions</text>
+  <text x="605" y="174" text-anchor="middle" font-size="11" fill="#1C4E96">Technical · Behavioral (STAR)</text>
+  <text x="605" y="190" text-anchor="middle" font-size="11" fill="#D32F2F">Trap (5 subtypes)</text>
+  <text x="605" y="206" text-anchor="middle" font-size="11" fill="#FF6B00">Pressure questions</text>
+  <text x="605" y="224" text-anchor="middle" font-size="11" fill="#5A7A9A">Category tabs · Copy · Notes</text>
+  <text x="605" y="240" text-anchor="middle" font-size="11" fill="#5A7A9A">Red flag hints · Follow-up Qs</text>
+  <text x="605" y="278" text-anchor="middle" font-size="10" fill="#007DC5" font-weight="700">Export JSON · Start Interview ↓</text>
+
+  <rect x="724" y="122" width="210" height="164" rx="8" fill="#FDECEA" stroke="#D32F2F" stroke-width="1.5"/>
+  <rect x="724" y="122" width="210" height="5" rx="8" fill="#D32F2F"/>
+  <text x="829" y="141" text-anchor="middle" font-size="12" font-weight="700" fill="#00205B">5 Trap Subtypes</text>
+  <text x="829" y="158" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">fake_tool</text>
+  <text x="829" y="174" text-anchor="middle" font-size="11" fill="#5A7A9A">Accept an invented tool name</text>
+  <text x="829" y="190" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">contradiction · simplicity</text>
+  <text x="829" y="206" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">specificity · achievement_depth</text>
+  <text x="829" y="224" text-anchor="middle" font-size="11" fill="#5A7A9A">Normaliser: API enforces</text>
+  <text x="829" y="240" text-anchor="middle" font-size="11" fill="#5A7A9A">category: "trap" for all trap_type</text>
+  <text x="829" y="256" text-anchor="middle" font-size="11" fill="#5A7A9A">Prevents model miscategorisation</text>
+  <text x="829" y="278" text-anchor="middle" font-size="10" fill="#D32F2F" font-weight="700">Highlighted in question bank UI</text>
+
+  <rect x="948" y="122" width="218" height="164" rx="8" fill="#F2F9EC" stroke="#63A70A" stroke-width="1.5"/>
+  <rect x="948" y="122" width="218" height="5" rx="8" fill="#63A70A"/>
+  <text x="1057" y="141" text-anchor="middle" font-size="12" font-weight="700" fill="#00205B">Career Risk Analysis</text>
+  <text x="1057" y="158" text-anchor="middle" font-size="11" fill="#5A7A9A">Avg tenure · Companies count</text>
+  <text x="1057" y="174" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="600">Job-hopping risk badge</text>
+  <text x="1057" y="190" text-anchor="middle" font-size="11" fill="#5A7A9A">Green / Amber / Red</text>
+  <text x="1057" y="206" text-anchor="middle" font-size="11" fill="#5A7A9A">Career gaps (&gt;3 months)</text>
+  <text x="1057" y="222" text-anchor="middle" font-size="11" fill="#5A7A9A">Project continuity risk</text>
+  <text x="1057" y="238" text-anchor="middle" font-size="11" fill="#5A7A9A">Overall red flags list</text>
+  <text x="1057" y="254" text-anchor="middle" font-size="11" fill="#5A7A9A">Also shown in final report</text>
+  <text x="1057" y="278" text-anchor="middle" font-size="10" fill="#63A70A" font-weight="700">Shown in question bank + report</text>
+
+  <!-- ── Phase 1 → Phase 2 connector ── -->
+  <line x1="600" y1="304" x2="600" y2="322" stroke="#007DC5" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <rect x="490" y="300" width="228" height="22" rx="5" fill="#EBF4FB"/>
+  <text x="604" y="315" text-anchor="middle" font-size="11" fill="#007DC5" font-weight="700">Questions ready — Start Interview</text>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PHASE 2: INTERVIEW SETUP  y=316 → 502                 -->
+  <!-- ══════════════════════════════════════════════════════ -->
+
+  <!-- Step 2a: Share Link -->
+  <rect x="44" y="322" width="210" height="110" rx="10" fill="white" stroke="#0082C3" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="44" y="322" width="210" height="6" rx="10" fill="#0082C3"/>
+  <text x="149" y="343" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Share Candidate Link</text>
+  <text x="149" y="360" text-anchor="middle" font-size="11" fill="#5A7A9A">Step 1: Interviewer copies URL</text>
+  <text x="149" y="376" text-anchor="middle" font-size="11" fill="#5A7A9A">URL = base + ?monitor=1&amp;session=X</text>
+  <text x="149" y="392" text-anchor="middle" font-size="11" fill="#5A7A9A">Gmail draft auto-created</text>
+  <text x="149" y="408" text-anchor="middle" font-size="11" fill="#5A7A9A">Sends to candidate by email/chat</text>
+  <text x="149" y="424" text-anchor="middle" font-size="11" fill="#0082C3" font-weight="700">One URL · No install · Chrome only</text>
+
+  <!-- Arrow → Candidate Opens -->
+  <line x1="254" y1="377" x2="276" y2="377" stroke="#0082C3" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- Step 2b: Candidate Opens -->
+  <rect x="278" y="322" width="210" height="110" rx="10" fill="white" stroke="#00B4D8" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="278" y="322" width="210" height="6" rx="10" fill="#00B4D8"/>
+  <text x="383" y="343" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Candidate Opens URL</text>
+  <text x="383" y="360" text-anchor="middle" font-size="11" fill="#5A7A9A">CandidateMonitor loads (?monitor=1)</text>
+  <text x="383" y="376" text-anchor="middle" font-size="11" fill="#5A7A9A">Whereby video auto-embedded</text>
+  <text x="383" y="392" text-anchor="middle" font-size="11" fill="#5A7A9A">Consent form displayed</text>
+  <text x="383" y="408" text-anchor="middle" font-size="11" fill="#5A7A9A">Mic permission requested</text>
+  <text x="383" y="424" text-anchor="middle" font-size="11" fill="#00B4D8" font-weight="700">Gaze tracking initialises (30s warmup)</text>
+
+  <!-- Arrow → Consent -->
+  <line x1="488" y1="377" x2="510" y2="377" stroke="#00B4D8" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- Step 2c: Consent propagates -->
+  <rect x="512" y="322" width="270" height="110" rx="10" fill="white" stroke="#63A70A" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="512" y="322" width="270" height="6" rx="10" fill="#63A70A"/>
+  <text x="647" y="343" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Consent Propagates</text>
+  <text x="647" y="360" text-anchor="middle" font-size="11" fill="#5A7A9A">Candidate ticks checkbox → localStorage write</text>
+  <text x="647" y="376" text-anchor="middle" font-size="11" fill="#5A7A9A">storage-event fires on interviewer tab</text>
+  <text x="647" y="392" text-anchor="middle" font-size="11" fill="#5A7A9A">Fallback: BroadcastChannel + 500ms poll</text>
+  <text x="647" y="408" text-anchor="middle" font-size="11" fill="#5A7A9A">Fallback 3: Signal API POST consent flag</text>
+  <text x="647" y="424" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="700">Auto-ticks on interviewer — no manual step</text>
+
+  <!-- Arrow → Start Recording -->
+  <line x1="782" y1="377" x2="804" y2="377" stroke="#63A70A" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <!-- Step 2d: Start Recording -->
+  <rect x="806" y="322" width="372" height="110" rx="10" fill="white" stroke="#1C4E96" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="806" y="322" width="372" height="6" rx="10" fill="#1C4E96"/>
+  <text x="992" y="343" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Start Recording (gates on consent)</text>
+  <text x="992" y="360" text-anchor="middle" font-size="11" fill="#5A7A9A">Web Speech API starts on candidate device — candidate mic only (split capture)</text>
+  <text x="992" y="376" text-anchor="middle" font-size="11" fill="#5A7A9A">MediaPipe gaze tracking active · Tab-switch detection active (Visibility API)</text>
+  <text x="992" y="392" text-anchor="middle" font-size="11" fill="#5A7A9A">Snapshot POSTed to /api/signal every ~10s · Machine A polls every 500ms</text>
+  <text x="992" y="408" text-anchor="middle" font-size="11" fill="#5A7A9A">Interviewer sees live gaze + tab-switch counters update in real time</text>
+  <text x="992" y="424" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="700">30s gaze warmup active — counts zeroed for first 30s to exclude camera-adjustment</text>
+
+  <!-- ── Phase 2 → Phase 3 connector ── -->
+  <line x1="600" y1="438" x2="600" y2="520" stroke="#1C4E96" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <rect x="480" y="438" width="240" height="22" rx="5" fill="#EBF4FB"/>
+  <text x="600" y="453" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="700">Interview underway — per-turn loop begins</text>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PHASE 3: LIVE RECORDING & SCORING  y=514 → 768        -->
+  <!-- ══════════════════════════════════════════════════════ -->
+
+  <!-- Per-turn loop box -->
+  <rect x="44" y="514" width="340" height="116" rx="10" fill="white" stroke="#1C4E96" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="44" y="514" width="340" height="6" rx="10" fill="#1C4E96"/>
+  <text x="214" y="534" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Per-Turn Scoring Loop</text>
+  <text x="214" y="551" text-anchor="middle" font-size="11" fill="#5A7A9A">1. Interviewer asks question → click 👤 Candidate</text>
+  <text x="214" y="567" text-anchor="middle" font-size="11" fill="#5A7A9A">2. Candidate answers on their device</text>
+  <text x="214" y="583" text-anchor="middle" font-size="11" fill="#5A7A9A">3. Transcript arrives via Signal API poll</text>
+  <text x="214" y="599" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="600">4. Interviewer clicks ✓ Done — Score This Answer</text>
+  <text x="214" y="615" text-anchor="middle" font-size="11" fill="#5A7A9A">5. Min 10-word check — skips chit-chat</text>
+  <text x="214" y="623" text-anchor="middle" font-size="11" fill="#5A7A9A">Response latency + max silence gap timed per turn</text>
+
+  <!-- Arrow to AI Stage 2 -->
+  <line x1="384" y1="572" x2="406" y2="572" stroke="#1C4E96" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <text x="395" y="564" text-anchor="middle" font-size="10" fill="#1C4E96" font-weight="700">score</text>
+
+  <!-- AI STAGE 2 -->
+  <rect x="408" y="514" width="340" height="220" rx="12" fill="white" stroke="#007DC5" stroke-width="3" filter="url(#shadow)"/>
+  <rect x="408" y="514" width="340" height="40" rx="12" fill="url(#blueGrad)"/>
+  <rect x="408" y="542" width="340" height="12" fill="url(#blueGrad)"/>
+  <text x="578" y="531" text-anchor="middle" font-size="14" font-weight="700" fill="white">AI STAGE 2 — Per-Turn Scorer</text>
+  <text x="578" y="549" text-anchor="middle" font-size="11" fill="rgba(200,220,255,0.9)">Groq · Llama 3.3 70B · &lt;2s · /api/score-turn</text>
+  <text x="578" y="575" text-anchor="middle" font-size="12" font-weight="700" fill="#00205B">Flags detected per answer:</text>
+  <text x="578" y="592" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">ai_generated</text>
+  <text x="578" y="608" text-anchor="middle" font-size="11" fill="#5A7A9A">ChatGPT fingerprint — structured bullet preamble</text>
+  <text x="578" y="624" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">scripted_language · vocab_shift</text>
+  <text x="578" y="640" text-anchor="middle" font-size="11" fill="#5A7A9A">Formal transitions / uncharacteristic vocabulary</text>
+  <text x="578" y="656" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">no_specifics · fake_tool_accepted</text>
+  <text x="578" y="672" text-anchor="middle" font-size="11" fill="#5A7A9A">Vague generalisation / accepts invented tool name</text>
+  <text x="578" y="688" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">slow_response · unbroken_fluency</text>
+  <text x="578" y="704" text-anchor="middle" font-size="11" fill="#5A7A9A">&gt;20s latency / long answer with &lt;2s silence</text>
+  <text x="578" y="722" text-anchor="middle" font-size="11" fill="#5A7A9A">Inputs: gaze_count + longest_silence_ms from Machine B</text>
+
+  <!-- Suspicion meter -->
+  <rect x="762" y="514" width="250" height="116" rx="10" fill="white" stroke="#FF6B00" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="762" y="514" width="250" height="6" rx="10" fill="#FF6B00"/>
+  <text x="887" y="534" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Suspicion Meter (per turn)</text>
+  <text x="887" y="551" text-anchor="middle" font-size="11" fill="#5A7A9A">Score 0–100 per answer</text>
+  <rect x="774" y="558" width="220" height="20" rx="4" fill="#E8F5E9" stroke="#63A70A" stroke-width="1"/>
+  <rect x="774" y="558" width="66" height="20" rx="4" fill="#63A70A"/>
+  <text x="887" y="572" text-anchor="middle" font-size="11" fill="#00205B" font-weight="700">LOW   0 – 40</text>
+  <rect x="774" y="584" width="220" height="20" rx="4" fill="#FFF3E0" stroke="#FF6B00" stroke-width="1"/>
+  <rect x="774" y="584" width="132" height="20" rx="4" fill="#FF6B00"/>
+  <text x="887" y="598" text-anchor="middle" font-size="11" fill="#00205B" font-weight="700">MEDIUM   41 – 69</text>
+  <rect x="774" y="610" width="220" height="20" rx="4" fill="#FDECEA" stroke="#D32F2F" stroke-width="1"/>
+  <rect x="774" y="610" width="196" height="20" rx="4" fill="#D32F2F"/>
+  <text x="887" y="624" text-anchor="middle" font-size="11" fill="white" font-weight="700">HIGH   70 – 100</text>
+
+  <!-- Arrow from Stage 2 to Suspicion meter -->
+  <line x1="748" y1="572" x2="760" y2="572" stroke="#FF6B00" stroke-width="2" marker-end="url(#arrowOrange)"/>
+
+  <!-- Decision diamond: suspicion ≥55 × 2? -->
+  <polygon points="1060,590 1120,636 1060,682 1000,636" fill="white" stroke="#D32F2F" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="1060" y="626" text-anchor="middle" font-size="11" font-weight="700" fill="#D32F2F">score</text>
+  <text x="1060" y="641" text-anchor="middle" font-size="11" font-weight="700" fill="#D32F2F">≥55</text>
+  <text x="1060" y="657" text-anchor="middle" font-size="11" font-weight="700" fill="#D32F2F">× 2 turns?</text>
+
+  <!-- Arrow from Suspicion meter to Diamond -->
+  <line x1="1012" y1="622" x2="1002" y2="630" stroke="#D32F2F" stroke-width="2" marker-end="url(#arrowRed)"/>
+
+  <!-- NO branch — loop back -->
+  <text x="946" y="648" text-anchor="middle" font-size="12" fill="#63A70A" font-weight="700">NO</text>
+  <line x1="1000" y1="636" x2="942" y2="636" stroke="#63A70A" stroke-width="2"/>
+  <line x1="942" y1="636" x2="942" y2="680" stroke="#63A70A" stroke-width="2"/>
+  <line x1="942" y1="680" x2="214" y2="680" stroke="#63A70A" stroke-width="2"/>
+  <line x1="214" y1="680" x2="214" y2="636" stroke="#63A70A" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="578" y="696" text-anchor="middle" font-size="11" fill="#63A70A">next question</text>
+
+  <!-- YES branch → AI Stage 3 -->
+  <text x="1130" y="622" text-anchor="middle" font-size="12" fill="#D32F2F" font-weight="700">YES</text>
+  <line x1="1120" y1="636" x2="1156" y2="636" stroke="#D32F2F" stroke-width="2.5" marker-end="url(#arrowRed)"/>
+
+  <!-- AI STAGE 3 -->
+  <rect x="1158" y="592" width="224" height="180" rx="12" fill="white" stroke="#D32F2F" stroke-width="3" filter="url(#shadow)"/>
+  <rect x="1158" y="592" width="224" height="40" rx="12" fill="#D32F2F"/>
+  <rect x="1158" y="620" width="224" height="12" fill="#D32F2F"/>
+  <text x="1270" y="608" text-anchor="middle" font-size="14" font-weight="700" fill="white">AI STAGE 3</text>
+  <text x="1270" y="625" text-anchor="middle" font-size="11" fill="rgba(255,200,200,0.9)">Auto-Trap · /api/generate-trap</text>
+  <text x="1270" y="647" text-anchor="middle" font-size="12" font-weight="700" fill="#00205B">Trap Generator</text>
+  <text x="1270" y="664" text-anchor="middle" font-size="11" fill="#5A7A9A">Groq · Llama 3.3 70B · ~3s</text>
+  <text x="1270" y="680" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">Context-aware pressure question</text>
+  <text x="1270" y="696" text-anchor="middle" font-size="11" fill="#5A7A9A">Based on current transcript</text>
+  <text x="1270" y="712" text-anchor="middle" font-size="11" fill="#5A7A9A">Injected live into question sidebar</text>
+  <text x="1270" y="728" text-anchor="middle" font-size="11" fill="#5A7A9A">⚠ Banner: "High suspicion — ask this"</text>
+  <text x="1270" y="748" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="700">Outside React updater — no crash</text>
+  <text x="1270" y="764" text-anchor="middle" font-size="11" fill="#5A7A9A">(turnScoresRef mirror pattern)</text>
+
+  <!-- ── Phase 3 → Phase 4 connector ── -->
+  <line x1="600" y1="710" x2="600" y2="796" stroke="#FF6B00" stroke-width="2.5" marker-end="url(#arrowOrange)"/>
+  <rect x="436" y="714" width="328" height="22" rx="5" fill="#FFF3E0"/>
+  <text x="600" y="729" text-anchor="middle" font-size="11" fill="#FF6B00" font-weight="700">Interviewer clicks "End &amp; Generate Report"</text>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- PHASE 4: INTEGRITY REPORT  y=780 → 1036              -->
+  <!-- ══════════════════════════════════════════════════════ -->
+
+  <!-- AI STAGE 4 -->
+  <rect x="44" y="796" width="280" height="236" rx="12" fill="white" stroke="#007DC5" stroke-width="3" filter="url(#shadow)"/>
+  <rect x="44" y="796" width="280" height="40" rx="12" fill="url(#blueGrad)"/>
+  <rect x="44" y="824" width="280" height="12" fill="url(#blueGrad)"/>
+  <text x="184" y="813" text-anchor="middle" font-size="14" font-weight="700" fill="white">AI STAGE 4 — Final Analyser</text>
+  <text x="184" y="831" text-anchor="middle" font-size="11" fill="rgba(200,220,255,0.9)">/api/score-interview · ~6s</text>
+  <text x="184" y="852" text-anchor="middle" font-size="12" font-weight="700" fill="#00205B">9-Dimension Analysis:</text>
+  <text x="184" y="869" text-anchor="middle" font-size="11" fill="#1C4E96">Resume cross-reference (strongest signal)</text>
+  <text x="184" y="885" text-anchor="middle" font-size="11" fill="#1C4E96">Years inflation detection</text>
+  <text x="184" y="901" text-anchor="middle" font-size="11" fill="#5A7A9A">Sums all resume employment periods</text>
+  <text x="184" y="917" text-anchor="middle" font-size="11" fill="#1C4E96">Tools/tech observation (non-penalising)</text>
+  <text x="184" y="933" text-anchor="middle" font-size="11" fill="#1C4E96">Suspicious quote extraction</text>
+  <text x="184" y="949" text-anchor="middle" font-size="11" fill="#1C4E96">Vocabulary + consistency analysis</text>
+  <text x="184" y="965" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="600">False positive protection:</text>
+  <text x="184" y="981" text-anchor="middle" font-size="11" fill="#5A7A9A">2+ signals required for HIGH risk</text>
+  <text x="184" y="997" text-anchor="middle" font-size="11" fill="#5A7A9A">Polished language alone never enough</text>
+  <text x="184" y="1013" text-anchor="middle" font-size="11" fill="#5A7A9A">Groq · Llama 3.3 70B</text>
+
+  <!-- Arrow from Stage 4 to Report -->
+  <line x1="324" y1="914" x2="346" y2="914" stroke="#FF6B00" stroke-width="2.5" marker-end="url(#arrowOrange)"/>
+
+  <!-- Integrity Report output box -->
+  <rect x="348" y="796" width="622" height="236" rx="12" fill="white" stroke="#FF6B00" stroke-width="2.5" filter="url(#shadow)"/>
+  <rect x="348" y="796" width="622" height="40" rx="12" fill="#FF6B00"/>
+  <rect x="348" y="824" width="622" height="12" fill="#FF6B00"/>
+  <text x="659" y="814" text-anchor="middle" font-size="15" font-weight="700" fill="white">Integrity Report</text>
+
+  <!-- 5 columns inside report box -->
+  <!-- Col 1: Score -->
+  <rect x="360" y="840" width="110" height="178" rx="7" fill="#EBF4FB" stroke="#007DC5" stroke-width="1.2"/>
+  <text x="415" y="858" text-anchor="middle" font-size="11" font-weight="700" fill="#007DC5">Score</text>
+  <text x="415" y="878" text-anchor="middle" font-size="22" font-weight="700" fill="#00205B">0–100</text>
+  <text x="415" y="898" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="700">LOW</text>
+  <text x="415" y="914" text-anchor="middle" font-size="11" fill="#FF6B00" font-weight="700">MEDIUM</text>
+  <text x="415" y="930" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="700">HIGH</text>
+  <line x1="370" y1="940" x2="460" y2="940" stroke="#E0EAF4" stroke-width="1"/>
+  <text x="415" y="956" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="700">PROCEED</text>
+  <text x="415" y="972" text-anchor="middle" font-size="11" fill="#FF6B00" font-weight="700">RE-INTERVIEW</text>
+  <text x="415" y="988" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="700">DO NOT PROCEED</text>
+  <text x="415" y="1008" text-anchor="middle" font-size="10" fill="#5A7A9A">Verdict</text>
+
+  <!-- Col 2: Flags -->
+  <rect x="480" y="840" width="122" height="178" rx="7" fill="#FFF8F3" stroke="#FF6B00" stroke-width="1.2"/>
+  <text x="541" y="858" text-anchor="middle" font-size="11" font-weight="700" fill="#FF6B00">Flags</text>
+  <text x="541" y="876" text-anchor="middle" font-size="11" fill="#5A7A9A">Suspicion flags</text>
+  <text x="541" y="892" text-anchor="middle" font-size="11" fill="#5A7A9A">Severity level</text>
+  <text x="541" y="908" text-anchor="middle" font-size="11" fill="#5A7A9A">Evidence quotes</text>
+  <text x="541" y="924" text-anchor="middle" font-size="11" fill="#5A7A9A">Plain-English</text>
+  <text x="541" y="940" text-anchor="middle" font-size="11" fill="#5A7A9A">explanation</text>
+  <text x="541" y="960" text-anchor="middle" font-size="11" fill="#5A7A9A">Resume vs</text>
+  <text x="541" y="976" text-anchor="middle" font-size="11" fill="#5A7A9A">interview</text>
+  <text x="541" y="992" text-anchor="middle" font-size="11" fill="#5A7A9A">mismatches</text>
+
+  <!-- Col 3: Career -->
+  <rect x="612" y="840" width="120" height="178" rx="7" fill="#F2F9EC" stroke="#63A70A" stroke-width="1.2"/>
+  <text x="672" y="858" text-anchor="middle" font-size="11" font-weight="700" fill="#63A70A">Career</text>
+  <text x="672" y="876" text-anchor="middle" font-size="11" fill="#5A7A9A">Years inflation</text>
+  <text x="672" y="892" text-anchor="middle" font-size="11" fill="#5A7A9A">flag if claimed</text>
+  <text x="672" y="908" text-anchor="middle" font-size="11" fill="#5A7A9A">≫ resume total</text>
+  <text x="672" y="926" text-anchor="middle" font-size="11" fill="#5A7A9A">Job-hopping</text>
+  <text x="672" y="942" text-anchor="middle" font-size="11" fill="#5A7A9A">risk badge</text>
+  <text x="672" y="960" text-anchor="middle" font-size="11" fill="#5A7A9A">Career gaps</text>
+  <text x="672" y="976" text-anchor="middle" font-size="11" fill="#5A7A9A">Project</text>
+  <text x="672" y="992" text-anchor="middle" font-size="11" fill="#5A7A9A">continuity</text>
+
+  <!-- Col 4: Per-Turn -->
+  <rect x="742" y="840" width="120" height="178" rx="7" fill="#EBF4FB" stroke="#1C4E96" stroke-width="1.2"/>
+  <text x="802" y="858" text-anchor="middle" font-size="11" font-weight="700" fill="#1C4E96">Per-Turn</text>
+  <text x="802" y="876" text-anchor="middle" font-size="11" fill="#5A7A9A">Each answer</text>
+  <text x="802" y="892" text-anchor="middle" font-size="11" fill="#5A7A9A">scored 0–100</text>
+  <text x="802" y="910" text-anchor="middle" font-size="11" fill="#5A7A9A">Reasoning</text>
+  <text x="802" y="926" text-anchor="middle" font-size="11" fill="#5A7A9A">shown</text>
+  <text x="802" y="944" text-anchor="middle" font-size="11" fill="#5A7A9A">Timing badges</text>
+  <text x="802" y="960" text-anchor="middle" font-size="11" fill="#5A7A9A">latency + max</text>
+  <text x="802" y="976" text-anchor="middle" font-size="11" fill="#5A7A9A">silence per Q</text>
+  <text x="802" y="994" text-anchor="middle" font-size="11" fill="#5A7A9A">Trap outcomes</text>
+
+  <!-- Col 5: Decision -->
+  <rect x="872" y="840" width="86" height="178" rx="7" fill="#FDECEA" stroke="#D32F2F" stroke-width="1.5"/>
+  <text x="915" y="858" text-anchor="middle" font-size="11" font-weight="700" fill="#D32F2F">Decision</text>
+  <text x="915" y="876" text-anchor="middle" font-size="11" fill="#5A7A9A">Interviewer</text>
+  <text x="915" y="892" text-anchor="middle" font-size="11" fill="#5A7A9A">lock block</text>
+  <text x="915" y="912" text-anchor="middle" font-size="12" font-weight="700" fill="#63A70A">HIRE</text>
+  <text x="915" y="930" text-anchor="middle" font-size="12" font-weight="700" fill="#FF6B00">HOLD</text>
+  <text x="915" y="948" text-anchor="middle" font-size="12" font-weight="700" fill="#D32F2F">REJECT</text>
+  <text x="915" y="966" text-anchor="middle" font-size="11" fill="#5A7A9A">Written</text>
+  <text x="915" y="982" text-anchor="middle" font-size="11" fill="#5A7A9A">justification</text>
+  <text x="915" y="1000" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="700">Locked</text>
+
+  <!-- Arrow from Report → HR Output -->
+  <line x1="970" y1="914" x2="992" y2="914" stroke="#63A70A" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+
+  <!-- HR Output -->
+  <rect x="994" y="796" width="188" height="236" rx="12" fill="white" stroke="#63A70A" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="994" y="796" width="188" height="40" rx="12" fill="#63A70A"/>
+  <rect x="994" y="824" width="188" height="12" fill="#63A70A"/>
+  <text x="1088" y="814" text-anchor="middle" font-size="13" font-weight="700" fill="white">HR Output</text>
+  <text x="1088" y="840" text-anchor="middle" font-size="12" font-weight="700" fill="#00205B">Export options:</text>
+  <text x="1088" y="858" text-anchor="middle" font-size="11" fill="#5A7A9A">Print / Save as PDF</text>
+  <text x="1088" y="874" text-anchor="middle" font-size="11" fill="#5A7A9A">Export JSON (full session)</text>
+  <text x="1088" y="890" text-anchor="middle" font-size="11" fill="#5A7A9A">Session ID for audit trail</text>
+  <text x="1088" y="906" text-anchor="middle" font-size="11" fill="#5A7A9A">Tab switches · Gaze deviations</text>
+  <text x="1088" y="924" text-anchor="middle" font-size="11" fill="#5A7A9A">Collapsible full transcript</text>
+  <line x1="1006" y1="934" x2="1174" y2="934" stroke="#E0EAF4" stroke-width="1"/>
+  <text x="1088" y="952" text-anchor="middle" font-size="12" font-weight="700" fill="#63A70A">Signal, not verdict</text>
+  <text x="1088" y="968" text-anchor="middle" font-size="11" fill="#5A7A9A">Like a credit score —</text>
+  <text x="1088" y="984" text-anchor="middle" font-size="11" fill="#5A7A9A">objective signal for</text>
+  <text x="1088" y="1000" text-anchor="middle" font-size="11" fill="#5A7A9A">the hiring team</text>
+
+  <!-- Footer tagline -->
+  <text x="600" y="1048" text-anchor="middle" font-size="11" fill="#8A9AAA" font-style="italic">"We can't see inside their machine. We can see inside their behavior."  ·  IntegrityAI  ·  AOC Summer 2026 · B9  ·  Groq demo → Claude Sonnet 4.6 production (1-line swap)</text>
+</svg>

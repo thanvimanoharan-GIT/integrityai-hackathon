@@ -49,7 +49,7 @@ Respond ONLY with valid JSON, no markdown:
 {"suspicion_score": <0-100>, "flag": "ai_generated"|"scripted_language"|"no_specifics"|"no_fillers"|"vocab_shift"|"fake_tool_accepted"|"slow_response"|"unbroken_fluency"|"none", "note": "<one sentence — name the specific pattern you detected, mention timing if flagged>"}`;
 
 module.exports = async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "https://integrityai-hackathon.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
     }
 
     const rawText = groqData.choices[0].message.content;
-    const match = rawText.match(/\{[\s\S]*\}/);
+    const match = rawText.match(/\{[^}]*?\}/);
     if (!match) return res.status(200).json({ suspicion_score: 30, flag: "none", note: "Could not parse response." });
 
     const result = JSON.parse(match[0]);

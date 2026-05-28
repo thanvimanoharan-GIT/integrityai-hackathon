@@ -4,7 +4,18 @@
  * Analyses candidate answers against their resume + behavioral signals
  */
 
-const SCORE_PROMPT = `You are IntegrityAI's Interview Analyst — an expert at detecting AI-assisted, coached, or scripted interview answers.
+const SCORE_PROMPT = `CRITICAL RULE – INSUFFICIENT DATA:
+If the transcript is empty, very short (<50 words), contains "[No speech was recorded]",
+or consists only of casual/non-interview language with no technical or professional content:
+- Set integrity_score to 50
+- Set recommendation to "re-interview"
+- Set recommendation_reason to "Insufficient interview data captured – re-interview recommended before any hiring decision."
+- Set overall_assessment to "No assessment possible – insufficient transcript data captured."
+- Set flags to empty array
+- DO NOT fabricate any positive or negative assessment
+- DO NOT invent candidate responses not present in the transcript
+
+You are IntegrityAI's Interview Analyst — an expert at detecting AI-assisted, coached, or scripted interview answers.
 
 You will receive:
 - The candidate's RESUME (ground truth — what they actually claim on paper)
@@ -152,6 +163,22 @@ module.exports = async (req, res) => {
       return res.status(400).json({ detail: "Transcript is too short to analyse." });
     }
 
+    // Insufficient transcript guard — return safe re-interview response rather than hallucinating
+    const wordCount = transcript.trim().split(/\s+/).length;
+    if (wordCount < 50 || transcript.includes('[No speech was recorded]')) {
+      return res.status(200).json({
+        integrity_score: 50,
+        risk_level: 'medium',
+        recommendation: 're-interview',
+        recommendation_reason: 'Insufficient interview data captured. The transcript does not contain enough candidate responses to make a reliable assessment. Please conduct a re-interview before making any hiring decision.',
+        flags: [],
+        notable_quotes: [],
+        overall_assessment: 'No assessment possible \u2013 insufficient transcript data was captured during this session.',
+        resume_vs_interview_summary: 'Unable to cross-reference \u2013 no candidate speech recorded.',
+        tool_observations: { tools_on_resume_used_in_interview: [], tools_not_on_resume: [], tools_note: 'No assessment possible.' }
+      });
+    }
+
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) return res.status(500).json({ detail: "GROQ_API_KEY not set." });
 
@@ -218,7 +245,7 @@ ${interviewer_notes || 'None'}
     }
 
     const rawText = groqData.choices[0].message.content;
-    const match = rawText.match(/\{[\s\S]*\}/);
+    const match = rawText.match(/\{[^}]*?\}/);
     if (!match) return res.status(500).json({ detail: "Unexpected AI response format." });
 
     const report = JSON.parse(match[0]);

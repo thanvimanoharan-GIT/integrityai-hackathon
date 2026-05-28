@@ -1,0 +1,335 @@
+<svg viewBox="0 0 1400 830" xmlns="http://www.w3.org/2000/svg" font-family="Calibri, 'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00205B"/>
+      <stop offset="100%" style="stop-color:#1C4E96"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#007DC5"/>
+      <stop offset="100%" style="stop-color:#1C4E96"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0082C3"/>
+      <stop offset="100%" style="stop-color:#00B4D8"/>
+    </linearGradient>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#007DC5"/>
+    </marker>
+    <marker id="arrowCyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00B4D8"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#63A70A"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#D32F2F"/>
+    </marker>
+    <marker id="arrowMuted" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8AAABB"/>
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="5" flood-color="rgba(0,32,91,0.13)"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="830" fill="#F2F6FC"/>
+
+  <!-- ── Header ── -->
+  <rect x="0" y="0" width="1400" height="68" fill="url(#headerGrad)"/>
+  <text x="700" y="30" text-anchor="middle" font-size="22" font-weight="700" fill="white" letter-spacing="0.4">IntegrityAI — System Architecture</text>
+  <text x="700" y="53" text-anchor="middle" font-size="13" fill="rgba(200,220,255,0.9)">Two-Machine Design · No Installation Required · Chrome + Mic Only · AOC Summer 2026 · B9</text>
+
+  <!-- ── BroadcastChannel / localStorage consent line (top, bridging both machines) ── -->
+  <line x1="290" y1="78" x2="290" y2="72" stroke="#7AAAC8" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="290" y1="72" x2="1110" y2="72" stroke="#7AAAC8" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="1110" y1="72" x2="1110" y2="78" stroke="#7AAAC8" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowMuted)"/>
+  <rect x="545" y="62" width="310" height="18" rx="4" fill="#EBF4FB"/>
+  <text x="700" y="74" text-anchor="middle" font-size="11" fill="#5A7A9A" font-weight="600">BroadcastChannel + localStorage events — consent + gaze propagation</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- MACHINE A — Interviewer                             -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="20" y="80" width="540" height="540" rx="12" fill="white" stroke="#007DC5" stroke-width="2.5" filter="url(#shadow)"/>
+  <!-- Title bar -->
+  <rect x="20" y="80" width="540" height="40" rx="12" fill="url(#blueGrad)"/>
+  <rect x="20" y="108" width="540" height="12" fill="url(#blueGrad)"/>
+  <text x="290" y="106" text-anchor="middle" font-size="15" font-weight="700" fill="white">MACHINE A — Interviewer</text>
+
+  <!-- Route label -->
+  <rect x="32" y="128" width="516" height="28" rx="6" fill="#EBF4FB" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="290" y="147" text-anchor="middle" font-size="12" fill="#007DC5" font-weight="700">Default route (no URL param) · Chrome browser · interviewer's computer</text>
+
+  <!-- Sub-box 1: Question Bank -->
+  <rect x="32" y="164" width="248" height="102" rx="8" fill="#EBF4FB" stroke="#007DC5" stroke-width="1.5"/>
+  <rect x="32" y="164" width="248" height="6" rx="8" fill="#007DC5"/>
+  <text x="156" y="183" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Question Bank</text>
+  <text x="156" y="200" text-anchor="middle" font-size="11" fill="#5A7A9A">15–20 personalised Qs from resume</text>
+  <text x="156" y="216" text-anchor="middle" font-size="11" fill="#5A7A9A">Tabs: All · Technical · Behavioral</text>
+  <text x="156" y="232" text-anchor="middle" font-size="11" fill="#5A7A9A">Trap · Pressure · Career Risk Card</text>
+  <rect x="60" y="244" width="192" height="18" rx="4" fill="white"/>
+  <text x="156" y="256" text-anchor="middle" font-size="11" fill="#007DC5" font-weight="700">/api/generate-questions</text>
+
+  <!-- Sub-box 2: Speaker Toggle + Transcript -->
+  <rect x="32" y="274" width="248" height="102" rx="8" fill="#EBF4FB" stroke="#007DC5" stroke-width="1.5"/>
+  <rect x="32" y="274" width="248" height="6" rx="8" fill="#007DC5"/>
+  <text x="156" y="293" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Speaker Tracking</text>
+  <text x="156" y="310" text-anchor="middle" font-size="11" fill="#5A7A9A">Toggle: Interviewer / Candidate turn</text>
+  <text x="156" y="326" text-anchor="middle" font-size="11" fill="#5A7A9A">Transcript merged from both devices</text>
+  <text x="156" y="342" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="600">✓ Done — Score This Answer</text>
+  <text x="156" y="358" text-anchor="middle" font-size="11" fill="#5A7A9A">Min 10-word threshold applied</text>
+
+  <!-- Sub-box 3: Integrity Report -->
+  <rect x="32" y="384" width="248" height="102" rx="8" fill="#FFF8F3" stroke="#FF6B00" stroke-width="1.5"/>
+  <rect x="32" y="384" width="248" height="6" rx="8" fill="#FF6B00"/>
+  <text x="156" y="403" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Integrity Report</text>
+  <text x="156" y="420" text-anchor="middle" font-size="11" fill="#5A7A9A">Score 0–100 · LOW / MEDIUM / HIGH</text>
+  <text x="156" y="436" text-anchor="middle" font-size="11" fill="#5A7A9A">Verdict · Flags · Suspicious Quotes</text>
+  <text x="156" y="452" text-anchor="middle" font-size="11" fill="#5A7A9A">Career Analysis · Interviewer Decision</text>
+  <rect x="60" y="464" width="192" height="18" rx="4" fill="white"/>
+  <text x="156" y="476" text-anchor="middle" font-size="11" fill="#FF6B00" font-weight="700">/api/score-interview · Print/Export</text>
+
+  <!-- Sub-box 4: Per-Turn Scorer -->
+  <rect x="292" y="164" width="256" height="102" rx="8" fill="#EBF4FB" stroke="#1C4E96" stroke-width="1.5"/>
+  <rect x="292" y="164" width="256" height="6" rx="8" fill="#1C4E96"/>
+  <text x="420" y="183" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Per-Turn AI Scorer</text>
+  <text x="420" y="200" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="600">Groq · Llama 3.3 70B · &lt;2s latency</text>
+  <text x="420" y="216" text-anchor="middle" font-size="11" fill="#5A7A9A">ChatGPT fingerprint · Scripted language</text>
+  <text x="420" y="232" text-anchor="middle" font-size="11" fill="#5A7A9A">Vocab shift · Unbroken fluency</text>
+  <rect x="316" y="244" width="208" height="18" rx="4" fill="white"/>
+  <text x="420" y="256" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="700">/api/score-turn · gaze + silence data</text>
+
+  <!-- Sub-box 5: Trap Injection -->
+  <rect x="292" y="274" width="256" height="102" rx="8" fill="#FDECEA" stroke="#D32F2F" stroke-width="1.5"/>
+  <rect x="292" y="274" width="256" height="6" rx="8" fill="#D32F2F"/>
+  <text x="420" y="293" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Dynamic Trap Injection</text>
+  <text x="420" y="310" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="600">Triggered: score ≥55 × 2 consecutive turns</text>
+  <text x="420" y="326" text-anchor="middle" font-size="11" fill="#5A7A9A">Fake tool · Contradiction · Simplicity</text>
+  <text x="420" y="342" text-anchor="middle" font-size="11" fill="#5A7A9A">Achievement depth · Specificity probe</text>
+  <rect x="316" y="354" width="208" height="18" rx="4" fill="white"/>
+  <text x="420" y="366" text-anchor="middle" font-size="11" fill="#D32F2F" font-weight="700">/api/generate-trap · Live injection</text>
+
+  <!-- Sub-box 6: Signal Poller -->
+  <rect x="292" y="384" width="256" height="102" rx="8" fill="#F2F9EC" stroke="#63A70A" stroke-width="1.5"/>
+  <rect x="292" y="384" width="256" height="6" rx="8" fill="#63A70A"/>
+  <text x="420" y="403" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Signal Poller</text>
+  <text x="420" y="420" text-anchor="middle" font-size="11" fill="#5A7A9A">GET /api/signal every 500ms</text>
+  <text x="420" y="436" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="600">Pulls candidate data cross-machine:</text>
+  <text x="420" y="452" text-anchor="middle" font-size="11" fill="#5A7A9A">transcript · gaze_count · silence_ms</text>
+  <text x="420" y="468" text-anchor="middle" font-size="11" fill="#5A7A9A">tab_switches · Live counters in UI</text>
+
+  <!-- API + Whereby footer strip (Machine A) -->
+  <rect x="32" y="494" width="516" height="30" rx="6" fill="#EBF4FB" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="70" y="514" font-size="11" fill="#007DC5" font-weight="700">/api/generate-questions</text>
+  <text x="230" y="514" font-size="11" fill="#007DC5" font-weight="700">/api/score-turn</text>
+  <text x="352" y="514" font-size="11" fill="#D32F2F" font-weight="700">/api/generate-trap</text>
+  <text x="480" y="514" font-size="11" fill="#FF6B00" font-weight="700">/api/score-interview</text>
+
+  <rect x="32" y="532" width="516" height="24" rx="6" fill="#007DC5"/>
+  <text x="290" y="549" text-anchor="middle" font-size="11" font-weight="700" fill="white">Whereby Video  ·  whereby.com/integrityai-demo  ·  Embedded iFrame  ·  No lobby (log in as host)</text>
+
+  <rect x="32" y="564" width="516" height="24" rx="6" fill="#00205B"/>
+  <text x="290" y="581" text-anchor="middle" font-size="11" font-weight="700" fill="white">Vercel Serverless Functions (Node.js)  ·  Auto-deploy on git push  ·  Free tier  ·  $0 infrastructure</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SIGNAL RELAY — /api/signal.js                       -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="574" y="178" width="252" height="330" rx="12" fill="white" stroke="#63A70A" stroke-width="2.5" filter="url(#shadow)"/>
+  <rect x="574" y="178" width="252" height="40" rx="12" fill="#63A70A"/>
+  <rect x="574" y="206" width="252" height="12" fill="#63A70A"/>
+  <text x="700" y="200" text-anchor="middle" font-size="14" font-weight="700" fill="white">/api/signal.js</text>
+  <text x="700" y="232" text-anchor="middle" font-size="12" font-weight="700" fill="#00205B">Vercel In-Memory Relay</text>
+  <text x="700" y="250" text-anchor="middle" font-size="11" fill="#5A7A9A">Session-keyed Map{} · Warm for demo</text>
+  <line x1="588" y1="258" x2="812" y2="258" stroke="#E0EAF4" stroke-width="1"/>
+
+  <rect x="586" y="266" width="228" height="72" rx="7" fill="#F2F9EC" stroke="#63A70A" stroke-width="1.2"/>
+  <text x="700" y="284" text-anchor="middle" font-size="12" font-weight="700" fill="#63A70A">POST  ←  Machine B</text>
+  <text x="700" y="300" text-anchor="middle" font-size="11" fill="#5A7A9A">stores snapshot by sessionId</text>
+  <text x="700" y="316" text-anchor="middle" font-size="11" fill="#5A7A9A">transcript · gaze_count</text>
+  <text x="700" y="330" text-anchor="middle" font-size="11" fill="#5A7A9A">longest_silence_ms · tab_switches</text>
+
+  <rect x="586" y="348" width="228" height="72" rx="7" fill="#EBF4FB" stroke="#007DC5" stroke-width="1.2"/>
+  <text x="700" y="366" text-anchor="middle" font-size="12" font-weight="700" fill="#007DC5">GET  →  Machine A</text>
+  <text x="700" y="382" text-anchor="middle" font-size="11" fill="#5A7A9A">returns latest snapshot</text>
+  <text x="700" y="398" text-anchor="middle" font-size="11" fill="#5A7A9A">polled every 500ms</text>
+  <text x="700" y="414" text-anchor="middle" font-size="11" fill="#5A7A9A">keyed by session ID (URL param)</text>
+
+  <text x="700" y="444" text-anchor="middle" font-size="11" fill="#5A7A9A">No database · no storage · stateless</text>
+  <text x="700" y="460" text-anchor="middle" font-size="11" fill="#5A7A9A" font-style="italic">Auto-cleared on Vercel cold start</text>
+  <text x="700" y="482" text-anchor="middle" font-size="12" fill="#63A70A" font-weight="700">Free · $0 · Vercel Function</text>
+  <text x="700" y="499" text-anchor="middle" font-size="11" fill="#5A7A9A">Session ID shared via candidate URL</text>
+
+  <!-- Arrows: Machine A ↔ Signal Relay -->
+  <!-- GET arrow: A (right edge x=560) → relay (left x=574) -->
+  <line x1="562" y1="358" x2="572" y2="358" stroke="#007DC5" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <text x="566" y="352" text-anchor="middle" font-size="10" fill="#007DC5" font-weight="700">GET</text>
+  <!-- Response: relay → A -->
+  <line x1="572" y1="375" x2="562" y2="375" stroke="#63A70A" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="566" y="393" text-anchor="middle" font-size="10" fill="#63A70A" font-weight="700">data</text>
+
+  <!-- Arrows: Machine B ↔ Signal Relay -->
+  <!-- POST arrow: B (left edge x=850) → relay (right x=826) -->
+  <line x1="848" y1="303" x2="828" y2="303" stroke="#00B4D8" stroke-width="2" marker-end="url(#arrowCyan)"/>
+  <text x="838" y="297" text-anchor="middle" font-size="10" fill="#00B4D8" font-weight="700">POST</text>
+  <!-- snapshot data: relay → B -->
+  <line x1="828" y1="320" x2="848" y2="320" stroke="#63A70A" stroke-width="1.5" stroke-dasharray="5,2" marker-end="url(#arrowGreen)"/>
+  <text x="838" y="339" text-anchor="middle" font-size="10" fill="#5A7A9A">ack</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- MACHINE B — Candidate                               -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="850" y="80" width="530" height="540" rx="12" fill="white" stroke="#00B4D8" stroke-width="2.5" filter="url(#shadow)"/>
+  <!-- Title bar -->
+  <rect x="850" y="80" width="530" height="40" rx="12" fill="url(#cyanGrad)"/>
+  <rect x="850" y="108" width="530" height="12" fill="url(#cyanGrad)"/>
+  <text x="1115" y="106" text-anchor="middle" font-size="15" font-weight="700" fill="white">MACHINE B — Candidate</text>
+
+  <!-- Route label -->
+  <rect x="862" y="128" width="506" height="28" rx="6" fill="#E6F7FC" stroke="#9DDCF0" stroke-width="1"/>
+  <text x="1115" y="147" text-anchor="middle" font-size="12" fill="#00B4D8" font-weight="700">?monitor=1 &amp;session=X  ·  Chrome browser  ·  candidate's own computer/phone</text>
+
+  <!-- Sub-box 1: Consent Gate -->
+  <rect x="862" y="164" width="232" height="102" rx="8" fill="#E6F7FC" stroke="#00B4D8" stroke-width="1.5"/>
+  <rect x="862" y="164" width="232" height="6" rx="8" fill="#00B4D8"/>
+  <text x="978" y="183" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Consent Gate</text>
+  <text x="978" y="200" text-anchor="middle" font-size="11" fill="#5A7A9A">Candidate ticks consent checkbox</text>
+  <text x="978" y="216" text-anchor="middle" font-size="11" fill="#5A7A9A">Propagates via localStorage event</text>
+  <text x="978" y="232" text-anchor="middle" font-size="11" fill="#5A7A9A">+ BroadcastChannel + Signal POST</text>
+  <text x="978" y="248" text-anchor="middle" font-size="11" fill="#00B4D8" font-weight="700">Auto-ticks on interviewer screen</text>
+  <text x="978" y="263" text-anchor="middle" font-size="11" fill="#5A7A9A">No manual step needed</text>
+
+  <!-- Sub-box 2: Whereby Video -->
+  <rect x="1106" y="164" width="262" height="102" rx="8" fill="#E6F7FC" stroke="#00B4D8" stroke-width="1.5"/>
+  <rect x="1106" y="164" width="262" height="6" rx="8" fill="#007DC5"/>
+  <text x="1237" y="183" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Whereby Video</text>
+  <text x="1237" y="200" text-anchor="middle" font-size="11" fill="#5A7A9A">Embedded iFrame on candidate screen</text>
+  <text x="1237" y="216" text-anchor="middle" font-size="11" fill="#5A7A9A">Fixed room: integrityai-demo</text>
+  <text x="1237" y="232" text-anchor="middle" font-size="11" fill="#5A7A9A">No waiting room (host logged in)</text>
+  <text x="1237" y="248" text-anchor="middle" font-size="11" fill="#5A7A9A">Open-in-tab fallback link in header</text>
+  <text x="1237" y="264" text-anchor="middle" font-size="11" fill="#007DC5" font-weight="700">Free plan · No install needed</text>
+
+  <!-- Sub-box 3: Web Speech API -->
+  <rect x="862" y="274" width="232" height="102" rx="8" fill="#E6F7FC" stroke="#00B4D8" stroke-width="1.5"/>
+  <rect x="862" y="274" width="232" height="6" rx="8" fill="#00B4D8"/>
+  <text x="978" y="293" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Web Speech API</text>
+  <text x="978" y="310" text-anchor="middle" font-size="11" fill="#00B4D8" font-weight="600">Candidate mic only — split capture</text>
+  <text x="978" y="326" text-anchor="middle" font-size="11" fill="#5A7A9A">Chrome built-in · continuous: true</text>
+  <text x="978" y="342" text-anchor="middle" font-size="11" fill="#5A7A9A">Transcript chunks buffered every ~10s</text>
+  <text x="978" y="358" text-anchor="middle" font-size="11" fill="#5A7A9A">POSTed to /api/signal with snapshot</text>
+  <text x="978" y="374" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="700">Free · No server · No storage</text>
+
+  <!-- Sub-box 4: MediaPipe FaceMesh -->
+  <rect x="1106" y="274" width="262" height="102" rx="8" fill="#FFF8F3" stroke="#FF6B00" stroke-width="1.5"/>
+  <rect x="1106" y="274" width="262" height="6" rx="8" fill="#FF6B00"/>
+  <text x="1237" y="293" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">MediaPipe FaceMesh</text>
+  <text x="1237" y="310" text-anchor="middle" font-size="11" fill="#FF6B00" font-weight="600">Gaze tracking on candidate device</text>
+  <text x="1237" y="326" text-anchor="middle" font-size="11" fill="#5A7A9A">Iris landmark deviation detection</text>
+  <text x="1237" y="342" text-anchor="middle" font-size="11" fill="#5A7A9A">30-frame baseline · 30s warmup guard</text>
+  <text x="1237" y="358" text-anchor="middle" font-size="11" fill="#5A7A9A">8-attempt CDN retry loop (8×1.5s)</text>
+  <text x="1237" y="374" text-anchor="middle" font-size="11" fill="#5A7A9A">gaze_count sent to /api/signal</text>
+
+  <!-- Sub-box 5: Tab Detection -->
+  <rect x="862" y="384" width="232" height="102" rx="8" fill="#E6F7FC" stroke="#00B4D8" stroke-width="1.5"/>
+  <rect x="862" y="384" width="232" height="6" rx="8" fill="#1C4E96"/>
+  <text x="978" y="403" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Tab Detection</text>
+  <text x="978" y="420" text-anchor="middle" font-size="11" fill="#5A7A9A">Page Visibility API on candidate tab</text>
+  <text x="978" y="436" text-anchor="middle" font-size="11" fill="#5A7A9A">visibilitychange event listener</text>
+  <text x="978" y="452" text-anchor="middle" font-size="11" fill="#5A7A9A">tab_switches counter increments</text>
+  <text x="978" y="468" text-anchor="middle" font-size="11" fill="#5A7A9A">Included in every signal snapshot</text>
+  <text x="978" y="484" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="700">Visible live on interviewer screen</text>
+
+  <!-- Sub-box 6: Snapshot POST -->
+  <rect x="1106" y="384" width="262" height="102" rx="8" fill="#F2F9EC" stroke="#63A70A" stroke-width="1.5"/>
+  <rect x="1106" y="384" width="262" height="6" rx="8" fill="#63A70A"/>
+  <text x="1237" y="403" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Snapshot POST</text>
+  <text x="1237" y="420" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="600">POST /api/signal every ~10 seconds</text>
+  <text x="1237" y="436" text-anchor="middle" font-size="11" fill="#5A7A9A">Payload: {'{'}sessionId, transcript,</text>
+  <text x="1237" y="452" text-anchor="middle" font-size="11" fill="#5A7A9A">gaze_count, longest_silence_ms,</text>
+  <text x="1237" y="468" text-anchor="middle" font-size="11" fill="#5A7A9A">tab_switches, timestamp{'}'}</text>
+  <text x="1237" y="484" text-anchor="middle" font-size="11" fill="#5A7A9A">Overwrites previous snapshot</text>
+
+  <!-- Footer bar Machine B -->
+  <rect x="862" y="494" width="506" height="30" rx="6" fill="#0082C3"/>
+  <text x="1115" y="514" text-anchor="middle" font-size="12" font-weight="700" fill="white">No installation · One URL · Consent Gate → all monitoring auto-starts · Chrome required</text>
+
+  <rect x="862" y="532" width="506" height="24" rx="6" fill="#E6F7FC" stroke="#9DDCF0" stroke-width="1"/>
+  <text x="1115" y="549" text-anchor="middle" font-size="11" fill="#00205B">Timing: answer latency &amp; longest silence tracked per turn · Passed to AI scorer alongside gaze deviations</text>
+
+  <rect x="862" y="564" width="506" height="24" rx="6" fill="#00205B"/>
+  <text x="1115" y="581" text-anchor="middle" font-size="11" font-weight="700" fill="white">Philosophy: behavioral observation only · No process scanning · No screen recording · No host install</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- TECH STACK ROW                                      -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="20" y="640" width="1360" height="168" rx="12" fill="white" stroke="#C5DCF0" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="20" y="640" width="1360" height="38" rx="12" fill="url(#headerGrad)"/>
+  <rect x="20" y="666" width="1360" height="12" fill="url(#headerGrad)"/>
+  <text x="700" y="664" text-anchor="middle" font-size="14" font-weight="700" fill="white">Tech Stack — 100% Free · $0 Total Infrastructure Cost</text>
+
+  <!-- 7 tech items: each w=181, gap=13, start x=27 -->
+  <!-- Item 1: AI Engine -->
+  <rect x="27" y="684" width="181" height="112" rx="7" fill="#EBF4FB" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="117" y="704" text-anchor="middle" font-size="12" font-weight="700" fill="#007DC5">AI Engine</text>
+  <text x="117" y="722" text-anchor="middle" font-size="11" fill="#00205B">Groq API (free tier)</text>
+  <text x="117" y="738" text-anchor="middle" font-size="11" fill="#5A7A9A">Llama 3.3 70B Versatile</text>
+  <text x="117" y="754" text-anchor="middle" font-size="11" fill="#5A7A9A">4 AI stages · JSON output</text>
+  <text x="117" y="770" text-anchor="middle" font-size="11" fill="#5A7A9A">30 req/min free tier</text>
+  <text x="117" y="786" text-anchor="middle" font-size="11" fill="#007DC5" font-weight="700">→ Claude Sonnet 4.6 prod</text>
+
+  <!-- Item 2: Frontend -->
+  <rect x="221" y="684" width="181" height="112" rx="7" fill="#EBF4FB" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="311" y="704" text-anchor="middle" font-size="12" font-weight="700" fill="#1C4E96">Frontend</text>
+  <text x="311" y="722" text-anchor="middle" font-size="11" fill="#00205B">React 18 (Babel CDN)</text>
+  <text x="311" y="738" text-anchor="middle" font-size="11" fill="#5A7A9A">Single index.html · No build</text>
+  <text x="311" y="754" text-anchor="middle" font-size="11" fill="#5A7A9A">2374 lines · SPA</text>
+  <text x="311" y="770" text-anchor="middle" font-size="11" fill="#5A7A9A">BroadcastChannel sync</text>
+  <text x="311" y="786" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="700">turnScoresRef mirror (R18)</text>
+
+  <!-- Item 3: Backend -->
+  <rect x="415" y="684" width="181" height="112" rx="7" fill="#F2F9EC" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="505" y="704" text-anchor="middle" font-size="12" font-weight="700" fill="#63A70A">Backend</text>
+  <text x="505" y="722" text-anchor="middle" font-size="11" fill="#00205B">Vercel Serverless</text>
+  <text x="505" y="738" text-anchor="middle" font-size="11" fill="#5A7A9A">Node.js · 5 API routes</text>
+  <text x="505" y="754" text-anchor="middle" font-size="11" fill="#5A7A9A">Auto-deploy on push</text>
+  <text x="505" y="770" text-anchor="middle" font-size="11" fill="#5A7A9A">SPA rewrite (vercel.json)</text>
+  <text x="505" y="786" text-anchor="middle" font-size="11" fill="#63A70A" font-weight="700">Free tier · CI/CD</text>
+
+  <!-- Item 4: Vision -->
+  <rect x="609" y="684" width="181" height="112" rx="7" fill="#FFF8F3" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="699" y="704" text-anchor="middle" font-size="12" font-weight="700" fill="#FF6B00">Gaze Vision</text>
+  <text x="699" y="722" text-anchor="middle" font-size="11" fill="#00205B">MediaPipe FaceMesh</text>
+  <text x="699" y="738" text-anchor="middle" font-size="11" fill="#5A7A9A">Iris landmarks · Browser JS</text>
+  <text x="699" y="754" text-anchor="middle" font-size="11" fill="#5A7A9A">30-frame baseline + delta</text>
+  <text x="699" y="770" text-anchor="middle" font-size="11" fill="#5A7A9A">8×1.5s CDN retry loop</text>
+  <text x="699" y="786" text-anchor="middle" font-size="11" fill="#FF6B00" font-weight="700">Candidate device only · Free</text>
+
+  <!-- Item 5: Speech -->
+  <rect x="803" y="684" width="181" height="112" rx="7" fill="#EBF4FB" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="893" y="704" text-anchor="middle" font-size="12" font-weight="700" fill="#00B4D8">Speech</text>
+  <text x="893" y="722" text-anchor="middle" font-size="11" fill="#00205B">Web Speech API</text>
+  <text x="893" y="738" text-anchor="middle" font-size="11" fill="#5A7A9A">Browser built-in · Free</text>
+  <text x="893" y="754" text-anchor="middle" font-size="11" fill="#5A7A9A">continuous: true · Chrome</text>
+  <text x="893" y="770" text-anchor="middle" font-size="11" fill="#5A7A9A">Split: candidate mic only</text>
+  <text x="893" y="786" text-anchor="middle" font-size="11" fill="#00B4D8" font-weight="700">Clean signal · No cross-talk</text>
+
+  <!-- Item 6: Video -->
+  <rect x="997" y="684" width="181" height="112" rx="7" fill="#EBF4FB" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="1087" y="704" text-anchor="middle" font-size="12" font-weight="700" fill="#1C4E96">Video</text>
+  <text x="1087" y="722" text-anchor="middle" font-size="11" fill="#00205B">Whereby Rooms</text>
+  <text x="1087" y="738" text-anchor="middle" font-size="11" fill="#5A7A9A">Fixed room · Embedded iFrame</text>
+  <text x="1087" y="754" text-anchor="middle" font-size="11" fill="#5A7A9A">No auth loop · No lobby</text>
+  <text x="1087" y="770" text-anchor="middle" font-size="11" fill="#5A7A9A">Log in as host to remove wait</text>
+  <text x="1087" y="786" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="700">Open-in-tab fallback link</text>
+
+  <!-- Item 7: Resume Parsing -->
+  <rect x="1191" y="684" width="181" height="112" rx="7" fill="#EBF4FB" stroke="#B8D4EE" stroke-width="1"/>
+  <text x="1281" y="704" text-anchor="middle" font-size="12" font-weight="700" fill="#1C4E96">Resume Parsing</text>
+  <text x="1281" y="722" text-anchor="middle" font-size="11" fill="#00205B">PDF.js (Mozilla)</text>
+  <text x="1281" y="738" text-anchor="middle" font-size="11" fill="#5A7A9A">Browser-side · No upload</text>
+  <text x="1281" y="754" text-anchor="middle" font-size="11" fill="#5A7A9A">3-attempt fallback loop</text>
+  <text x="1281" y="770" text-anchor="middle" font-size="11" fill="#5A7A9A">Standard → Lenient → Raw</text>
+  <text x="1281" y="786" text-anchor="middle" font-size="11" fill="#1C4E96" font-weight="700">Privacy: data never leaves browser</text>
+
+  <!-- Footer tagline -->
+  <text x="700" y="818" text-anchor="middle" font-size="11" fill="#8A9AAA" font-style="italic">"We can't see inside their machine. We can see inside their behavior."  ·  IntegrityAI  ·  Signal, not verdict  ·  AOC Summer 2026 · B9</text>
+</svg>
