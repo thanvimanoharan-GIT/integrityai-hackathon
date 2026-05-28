@@ -126,7 +126,7 @@
   <text x="480" y="514" font-size="11" fill="#FF6B00" font-weight="700">/api/score-interview</text>
 
   <rect x="32" y="532" width="516" height="24" rx="6" fill="#007DC5"/>
-  <text x="290" y="549" text-anchor="middle" font-size="11" font-weight="700" fill="white">Whereby Video  ·  whereby.com/integrityai-demo  ·  Embedded iFrame  ·  No lobby (log in as host)</text>
+  <text x="290" y="549" text-anchor="middle" font-size="11" font-weight="700" fill="white">Video Call Platform (Whereby / Zoom / Teams / Google Meet)  ·  Configurable per session</text>
 
   <rect x="32" y="564" width="516" height="24" rx="6" fill="#00205B"/>
   <text x="290" y="581" text-anchor="middle" font-size="11" font-weight="700" fill="white">Vercel Serverless Functions (Node.js)  ·  Auto-deploy on git push  ·  Free tier  ·  $0 infrastructure</text>
@@ -198,10 +198,10 @@
   <text x="978" y="248" text-anchor="middle" font-size="11" fill="#00B4D8" font-weight="700">Auto-ticks on interviewer screen</text>
   <text x="978" y="263" text-anchor="middle" font-size="11" fill="#5A7A9A">No manual step needed</text>
 
-  <!-- Sub-box 2: Whereby Video -->
+  <!-- Sub-box 2: Video Call Platform -->
   <rect x="1106" y="164" width="262" height="102" rx="8" fill="#E6F7FC" stroke="#00B4D8" stroke-width="1.5"/>
   <rect x="1106" y="164" width="262" height="6" rx="8" fill="#007DC5"/>
-  <text x="1237" y="183" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Whereby Video</text>
+  <text x="1237" y="183" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Video Call Platform</text>
   <text x="1237" y="200" text-anchor="middle" font-size="11" fill="#5A7A9A">Embedded iFrame on candidate screen</text>
   <text x="1237" y="216" text-anchor="middle" font-size="11" fill="#5A7A9A">Fixed room: integrityai-demo</text>
   <text x="1237" y="232" text-anchor="middle" font-size="11" fill="#5A7A9A">No waiting room (host logged in)</text>
@@ -315,7 +315,7 @@
   <!-- Item 6: Video -->
   <rect x="997" y="684" width="181" height="112" rx="7" fill="#EBF4FB" stroke="#B8D4EE" stroke-width="1"/>
   <text x="1087" y="704" text-anchor="middle" font-size="12" font-weight="700" fill="#1C4E96">Video</text>
-  <text x="1087" y="722" text-anchor="middle" font-size="11" fill="#00205B">Whereby Rooms</text>
+  <text x="1087" y="722" text-anchor="middle" font-size="11" fill="#00205B">Video Platform</text>
   <text x="1087" y="738" text-anchor="middle" font-size="11" fill="#5A7A9A">Fixed room · Embedded iFrame</text>
   <text x="1087" y="754" text-anchor="middle" font-size="11" fill="#5A7A9A">No auth loop · No lobby</text>
   <text x="1087" y="770" text-anchor="middle" font-size="11" fill="#5A7A9A">Log in as host to remove wait</text>

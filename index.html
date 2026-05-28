@@ -687,9 +687,10 @@ function DropZone({ file, onFile }) {
 }
 
 function Step1({ onStart, error }) {
-  const [file, setFile]       = useState(null);
-  const [role, setRole]       = useState('');
-  const [company, setCompany] = useState('');
+  const [file, setFile]           = useState(null);
+  const [role, setRole]           = useState('');
+  const [company, setCompany]     = useState('');
+  const [meetingUrl, setMeetingUrl] = useState('https://whereby.com/integrityai-demo');
   return (
     <div className="card">
       <div className="card-title">Set Up Interview</div>
@@ -704,10 +705,14 @@ function Step1({ onStart, error }) {
           <input className="field-input" placeholder="e.g. Acme Corp" value={company} onChange={e=>setCompany(e.target.value)} />
         </div>
       </div>
+      <div style={{marginBottom:12}}>
+        <label className="field-label">Video Call URL <span style={{color:'#64748b',fontWeight:400,fontSize:11}}>(Zoom, Teams, Google Meet, Whereby — any link)</span></label>
+        <input className="field-input" placeholder="https://zoom.us/j/... or https://whereby.com/your-room" value={meetingUrl} onChange={e=>setMeetingUrl(e.target.value)} />
+      </div>
       <label className="field-label">Candidate Resume (PDF)</label>
       <DropZone file={file} onFile={setFile} />
       {error && <div className="error-box">⚠️ {error}</div>}
-      <button className="btn btn-primary" disabled={!file} onClick={()=>onStart(file, role, company)}>
+      <button className="btn btn-primary" disabled={!file} onClick={()=>onStart(file, role, company, meetingUrl)}>
         🧠 Generate Question Bank →
       </button>
     </div>
@@ -862,7 +867,7 @@ function Step3({ result, filename, role, company, onReset, onStartInterview }) {
 }
 
 // ── Step 4: Live Interview ────────────────────────────────────────────────────
-function InterviewScreen({ questions, candidateName, company, sessionId, resumeText, onEnd }) {
+function InterviewScreen({ questions, candidateName, company, sessionId, resumeText, meetingUrl, onEnd }) {
   const [ivState, setIvState]               = useState('setup');
   const [elapsed, setElapsed]               = useState(0);
   const [displayText, setDisplayText]       = useState('');
@@ -906,8 +911,9 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const watchdogRef     = useRef(null);
   const bcRef           = useRef(null);
   const roomId          = useRef(genRoomId(candidateName));
-  const wherebyUrl      = 'https://whereby.com/integrityai-demo?embed';
-  const wherebyTabUrl   = 'https://whereby.com/integrityai-demo';
+  const _vcBase         = meetingUrl || 'https://whereby.com/integrityai-demo';
+  const wherebyTabUrl   = _vcBase;
+  const wherebyUrl      = _vcBase.includes('whereby.com') ? _vcBase + '?embed' : _vcBase;
   // Auto speaker detection
   const localParticipantIdRef = useRef(null);
   const lastAutoSwitchRef     = useRef(0);
@@ -918,7 +924,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const snapshotConsumedLenRef  = useRef(0);   // chars of transcript_snapshot already consumed (prevents re-insertion)
   const recordingStartTsRef    = useRef(0);   // epoch ms when startRecording() was called — rejects stale snapshots
   // ONE link for candidate — video call + tab monitoring
-  const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}`;
+  const monitorUrl      = `${window.location.origin}?monitor=1&session=${sessionId}&room=${encodeURIComponent(roomId.current)}&vc=${encodeURIComponent(_vcBase)}`;
 
   // Candidate tab-switch detection via BroadcastChannel (same-machine demo)
   useEffect(() => {
@@ -1983,13 +1989,15 @@ function IntegrityReport({ result, interviewData, role, company, sessionId, onRe
 
 // ── Candidate Monitor Page ────────────────────────────────────────────────────
 // Shown when candidate opens ?monitor=1&session=SESSION_ID
-function CandidateMonitor({ sessionId }) {
+function CandidateMonitor({ sessionId, meetingUrl }) {
   const [tabCount, setTabCount]     = useState(0);
   const [gazeCount, setGazeCount]   = useState(0);
   const [gazeStatus, setGazeStatus] = useState('CALIBRATING'); // CALIBRATING | OK | AWAY
   const [consented, setConsented]   = useState(false);
   const [bcRef] = useState(() => { try { return new BroadcastChannel('integrity-ai-signals'); } catch(e) { return null; } });
-  const wherebyUrl = 'https://whereby.com/integrityai-demo?embed';
+  const _vcBase    = meetingUrl || 'https://whereby.com/integrityai-demo';
+  const isWhereby  = _vcBase.includes('whereby.com');
+  const wherebyUrl = isWhereby ? _vcBase + '?embed' : _vcBase;
 
   const tabCountRef    = React.useRef(0);
   const gazeCountRef   = React.useRef(0);
@@ -2261,14 +2269,26 @@ function CandidateMonitor({ sessionId }) {
       </div>
       <div style={{background:'rgba(0,0,0,.3)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 20px',fontSize:11,color:'#64748b',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <span>Video call below — or open in a new tab for full screen</span>
-        <a href="https://whereby.com/integrityai-demo" target="_blank" rel="noopener noreferrer"
+        <a href={_vcBase} target="_blank" rel="noopener noreferrer"
           style={{color:'#818cf8',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:12}}>
           ↗ Open video call in new tab
         </a>
       </div>
-      <div style={{flex:1}}>
-        <iframe src={wherebyUrl} style={{width:'100%',height:'100%',border:'none',minHeight:'calc(100vh - 120px)'}}
-          allow="camera; microphone; fullscreen; speaker; display-capture; autoplay; picture-in-picture" allowFullScreen />
+      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:isWhereby?'stretch':'center'}}>
+        {isWhereby ? (
+          <iframe src={wherebyUrl} style={{width:'100%',height:'100%',border:'none',minHeight:'calc(100vh - 120px)'}}
+            allow="camera; microphone; fullscreen; speaker; display-capture; autoplay; picture-in-picture" allowFullScreen />
+        ) : (
+          <div style={{textAlign:'center',padding:40}}>
+            <div style={{fontSize:40,marginBottom:16}}>📹</div>
+            <div style={{color:'#e2e8f0',fontSize:16,fontWeight:700,marginBottom:8}}>Your video call is ready</div>
+            <div style={{color:'#94a3b8',fontSize:13,marginBottom:24}}>Click below to join — keep this tab open so IntegrityAI can monitor your session.</div>
+            <a href={_vcBase} target="_blank" rel="noopener noreferrer"
+              style={{display:'inline-block',background:'#6366f1',color:'white',borderRadius:8,padding:'14px 32px',fontSize:15,fontWeight:700,textDecoration:'none'}}>
+              ▶ Join Video Call
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2293,8 +2313,9 @@ function App() {
   const params      = new URLSearchParams(window.location.search);
   const isMonitor   = params.get('monitor') === '1';
   const monitorSid  = params.get('session') || 'demo';
+  const monitorVc   = params.get('vc') || 'https://whereby.com/integrityai-demo';
 
-  if (isMonitor) return <CandidateMonitor sessionId={monitorSid} />;
+  if (isMonitor) return <CandidateMonitor sessionId={monitorSid} meetingUrl={monitorVc} />;
 
   // ── Restore from localStorage if previous session was saved ──────────────
   const _saved = React.useMemo(() => loadSession(), []);
@@ -2311,11 +2332,13 @@ function App() {
   const [resumeText,   setResumeText]   = useState('');
   const [interviewData,setInterviewData]= useState(_hasReport ? _saved.interviewData : null);
   const [sessionRestored, setSessionRestored] = useState(_hasReport);
+  const [meetingUrl,   setMeetingUrl]   = useState('https://whereby.com/integrityai-demo');
 
-  const handleStart = async (file, roleVal, companyVal) => {
+  const handleStart = async (file, roleVal, companyVal, meetingUrlVal) => {
     setLoadError('');
     setRole(roleVal);
     setCompany(companyVal);
+    setMeetingUrl(meetingUrlVal || 'https://whereby.com/integrityai-demo');
     setFilename(file.name);
     setSessionId(genSessionId());
     setStep('loading');
@@ -2355,7 +2378,7 @@ function App() {
   if (step === 'step1')     content = <Step1 onStart={handleStart} error={loadError} />;
   else if (step === 'loading')   content = <Step2 loadingStep={loadingStep} />;
   else if (step === 'step3')     content = <Step3 result={qbResult} filename={filename} role={role} company={company} onReset={handleReset} onStartInterview={() => setStep('interview')} />;
-  else if (step === 'interview') content = <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} careerAnalysis={qbResult.career_analysis || null} onEnd={(data) => {
+  else if (step === 'interview') content = <InterviewScreen questions={qbResult.questions} candidateName={qbResult.candidate_name} company={company} sessionId={sessionId} resumeText={resumeText} meetingUrl={meetingUrl} careerAnalysis={qbResult.career_analysis || null} onEnd={(data) => {
               setInterviewData(data);
               setStep('report');
               // Persist immediately so a page close doesn't lose the report

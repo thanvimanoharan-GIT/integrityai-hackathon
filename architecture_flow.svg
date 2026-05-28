@@ -155,7 +155,7 @@
   <rect x="278" y="322" width="210" height="6" rx="10" fill="#00B4D8"/>
   <text x="383" y="343" text-anchor="middle" font-size="13" font-weight="700" fill="#00205B">Candidate Opens URL</text>
   <text x="383" y="360" text-anchor="middle" font-size="11" fill="#5A7A9A">CandidateMonitor loads (?monitor=1)</text>
-  <text x="383" y="376" text-anchor="middle" font-size="11" fill="#5A7A9A">Whereby video auto-embedded</text>
+  <text x="383" y="376" text-anchor="middle" font-size="11" fill="#5A7A9A">Video call (any platform)</text>
   <text x="383" y="392" text-anchor="middle" font-size="11" fill="#5A7A9A">Consent form displayed</text>
   <text x="383" y="408" text-anchor="middle" font-size="11" fill="#5A7A9A">Mic permission requested</text>
   <text x="383" y="424" text-anchor="middle" font-size="11" fill="#00B4D8" font-weight="700">Gaze tracking initialises (30s warmup)</text>
