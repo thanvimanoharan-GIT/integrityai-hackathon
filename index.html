@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IntegrityAI — Interview Authenticity Detector</title>
-  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
-  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
-  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js" integrity="sha384-0HL/VWVbwweJfp0saUL50fXRuSABCdVeinTBoJCDXprLkJ49VI0QMWNGMRt8ebnT"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js" integrity="sha384-79Od0yhavbvtuP2nWl+Y6mwgs8AlknSIikYSw0+uOc65GTyH8SW7e2hCyCB303Y2"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js" integrity="sha384-aGlMNK3U/x0wl4lEH5jD1PGhJlX9hApuPmIiA5gtiYCOQ1J8ejIdC0btaU/TMoBD"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous" integrity="sha384-nKiz5QrpRlMQLw5nrZcprT7N9vmmAcIgV8TuGuep4x91V4JIPsXa+D44Wxj0guoa" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous" integrity="sha384-q1KhAZhJcJXr3zfC3Tz07pBqQSabwFIZhXlmlUAB8s0zk4ETWERkIKGBCFQ5Jc3e" crossorigin="anonymous"></script>
   <!-- Whereby video call — no external JS needed, pure iframe embed -->
   <style>
     /* ── Reset & Base ── */
@@ -913,7 +913,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const roomId          = useRef(genRoomId(candidateName));
   const _vcBase         = meetingUrl || 'https://whereby.com/integrityai-demo';
   const wherebyTabUrl   = _vcBase;
-  const wherebyUrl      = _vcBase.includes('whereby.com') ? _vcBase + '?embed' : _vcBase;
+  const wherebyUrl      = _vcBase.includes('whereby.com') ? _vcBase + (_vcBase.includes('?') ? '&' : '?') + 'embed&skipMediaPermissionPrompt' : _vcBase;
   // Auto speaker detection
   const localParticipantIdRef = useRef(null);
   const lastAutoSwitchRef     = useRef(0);
@@ -1997,7 +1997,7 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
   const [bcRef] = useState(() => { try { return new BroadcastChannel('integrity-ai-signals'); } catch(e) { return null; } });
   const _vcBase    = meetingUrl || 'https://whereby.com/integrityai-demo';
   const isWhereby  = _vcBase.includes('whereby.com');
-  const wherebyUrl = isWhereby ? _vcBase + '?embed' : _vcBase;
+  const wherebyUrl = isWhereby ? _vcBase + (_vcBase.includes('?') ? '&' : '?') + 'embed&skipMediaPermissionPrompt' : _vcBase;
 
   const tabCountRef    = React.useRef(0);
   const gazeCountRef   = React.useRef(0);
@@ -2023,7 +2023,10 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
         body: JSON.stringify({ session: sessionId, type: 'tab_switch' }) }).catch(()=>{});
     };
     const onVis  = () => { if (document.hidden) reportSwitch(); };
-    const onBlur = () => reportSwitch();
+    const onBlur = () => {
+      if (window._ignoreNextBlur) { window._ignoreNextBlur = false; return; }
+      reportSwitch();
+    };
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('blur', onBlur);
     return () => {
@@ -2270,6 +2273,7 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
       <div style={{background:'rgba(0,0,0,.3)',borderBottom:'1px solid rgba(255,255,255,.05)',padding:'6px 20px',fontSize:11,color:'#64748b',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <span>Video call below — or open in a new tab for full screen</span>
         <a href={_vcBase} target="_blank" rel="noopener noreferrer"
+          onClick={()=>{ window._ignoreNextBlur = true; }}
           style={{color:'#818cf8',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:12}}>
           ↗ Open video call in new tab
         </a>
@@ -2284,6 +2288,7 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
             <div style={{color:'#e2e8f0',fontSize:16,fontWeight:700,marginBottom:8}}>Your video call is ready</div>
             <div style={{color:'#94a3b8',fontSize:13,marginBottom:24}}>Click below to join — keep this tab open so IntegrityAI can monitor your session.</div>
             <a href={_vcBase} target="_blank" rel="noopener noreferrer"
+              onClick={()=>{ window._ignoreNextBlur = true; }}
               style={{display:'inline-block',background:'#6366f1',color:'white',borderRadius:8,padding:'14px 32px',fontSize:15,fontWeight:700,textDecoration:'none'}}>
               ▶ Join Video Call
             </a>
@@ -2408,8 +2413,26 @@ function App() {
 
 
 var _fb = document.getElementById('fallback'); if (_fb) _fb.remove();
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  componentDidCatch(e, info) { console.error('[IntegrityAI crash]', e, info); }
+  render() {
+    if (this.state.error) return (
+      <div style={{minHeight:'100vh',background:'#0d0f14',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+        <div style={{background:'#1a1f2e',border:'1px solid rgba(239,68,68,.4)',borderRadius:12,padding:32,maxWidth:520,width:'100%'}}>
+          <div style={{color:'#f87171',fontSize:18,fontWeight:700,marginBottom:12}}>⚠️ IntegrityAI — Something went wrong</div>
+          <pre style={{color:'#94a3b8',fontSize:11,whiteSpace:'pre-wrap',wordBreak:'break-word',marginBottom:16}}>{this.state.error?.message || String(this.state.error)}</pre>
+          <button onClick={()=>window.location.reload()} style={{background:'#6366f1',color:'white',border:'none',borderRadius:6,padding:'8px 20px',cursor:'pointer',fontWeight:700}}>Reload</button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 const _root = ReactDOM.createRoot(document.getElementById('root'));
-_root.render(<App />);
+_root.render(<ErrorBoundary><App /></ErrorBoundary>);
     </script>
   </body>
 </html>
