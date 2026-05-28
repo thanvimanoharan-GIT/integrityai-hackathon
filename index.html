@@ -906,7 +906,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
   const watchdogRef     = useRef(null);
   const bcRef           = useRef(null);
   const roomId          = useRef(genRoomId(candidateName));
-  const wherebyUrl      = 'https://whereby.com/integrityai-demo?embed&skipMediaPermissionPrompt';
+  const wherebyUrl      = 'https://whereby.com/integrityai-demo?embed';
   const wherebyTabUrl   = 'https://whereby.com/integrityai-demo';
   // Auto speaker detection
   const localParticipantIdRef = useRef(null);
@@ -1989,7 +1989,7 @@ function CandidateMonitor({ sessionId }) {
   const [gazeStatus, setGazeStatus] = useState('CALIBRATING'); // CALIBRATING | OK | AWAY
   const [consented, setConsented]   = useState(false);
   const [bcRef] = useState(() => { try { return new BroadcastChannel('integrity-ai-signals'); } catch(e) { return null; } });
-  const wherebyUrl = 'https://whereby.com/integrityai-demo?embed&skipMediaPermissionPrompt';
+  const wherebyUrl = 'https://whereby.com/integrityai-demo?embed';
 
   const tabCountRef    = React.useRef(0);
   const gazeCountRef   = React.useRef(0);
