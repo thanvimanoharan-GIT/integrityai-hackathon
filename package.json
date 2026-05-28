@@ -1,0 +1,29 @@
+{
+  "name": "integrityai-api",
+  "version": "1.0.0",
+  "description": "IntegrityAI serverless API functions",
+  "scripts": {
+    "test": "jest --coverage --coverageReporters=text --coverageReporters=lcov --forceExit",
+    "test:ci": "jest --coverage --coverageReporters=text --coverageReporters=lcov --ci --forceExit"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "api/**/*.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "lines": 80,
+        "branches": 80,
+        "functions": 80,
+        "statements": 80
+      }
+    },
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
