@@ -49,6 +49,8 @@ module.exports = async (req, res) => {
       s.snapshot_ts         = Date.now();
       s.snapshot_gaze       = typeof gaze_count       === 'number' ? gaze_count       : 0;
       s.snapshot_silence_ms = typeof longest_silence_ms === 'number' ? longest_silence_ms : null;
+      // Piggyback consent from snapshot — ensures same instance stores both (cross-machine reliability)
+      if (req.body.consent_given) s.consent_given = true;
 
     } else if (type === 'transcript_chunk' && text && text.trim()) {
       s.transcript_chunks.push({ text: text.trim(), ts: Date.now() });

@@ -2147,6 +2147,7 @@ function CandidateMonitor({ sessionId }) {
           text:                accumulated,
           gaze_count:          gazeCountRef.current,   // total gaze-away events since consent
           longest_silence_ms:  longestSilenceMs,        // longest gap in current unsent turn
+          consent_given:       true,                    // piggyback consent on every snapshot (cross-machine reliability)
         })
       }).catch(() => {});
       lastSnapshotTs   = Date.now();
@@ -2204,9 +2205,15 @@ function CandidateMonitor({ sessionId }) {
     try { localStorage.setItem('integrity_consent_' + sessionId, Date.now().toString()); } catch (_e) { /* localStorage unavailable (private browsing or quota exceeded) */ }
     // Secondary: BroadcastChannel (same-device fallback)
     if (bcRef) bcRef.postMessage({ type: 'consent_given', session: sessionId });
-    // Tertiary: API signal (cross-device, unreliable on serverless but best-effort)
-    fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ session: sessionId, type: 'consent_given' }) }).catch(()=>{});
+    // Tertiary: API signal with retry — cross-device (serverless instance may vary, retry 30x/10s = 5min)
+    let _consentRetries = 0;
+    const _postConsent = () => {
+      fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ session: sessionId, type: 'consent_given' }) }).catch(()=>{});
+      _consentRetries++;
+      if (_consentRetries < 30) setTimeout(_postConsent, 10000);
+    };
+    _postConsent();
   };
 
   if (!consented) return (
