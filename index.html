@@ -945,7 +945,18 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         }
       };
     }
-    return () => { try { bc?.close(); } catch(e) {} };
+    // localStorage storage-event — fires in OTHER tabs on same device when candidate consents
+    const onStorage = (e) => {
+      if (e.key === 'integrity_consent_' + sessionId) {
+        setConsentReady(true);
+        setConsentAuto(true);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      try { bc?.close(); } catch(e) {}
+      window.removeEventListener('storage', onStorage);
+    };
   }, [sessionId]);
 
   // Cross-machine signal poll — runs every 2s on Mac A (interviewer)
