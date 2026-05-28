@@ -245,7 +245,7 @@ ${interviewer_notes || 'None'}
     }
 
     const rawText = groqData.choices[0].message.content;
-    const match = rawText.match(/\{[^}]*?\}/);
+    const match = (() => { const s = rawText.indexOf('{'); const e = rawText.lastIndexOf('}'); return (s !== -1 && e > s) ? [rawText.slice(s, e + 1)] : null; })();
     if (!match) return res.status(500).json({ detail: "Unexpected AI response format." });
 
     const report = JSON.parse(match[0]);

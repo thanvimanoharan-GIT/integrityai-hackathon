@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
     }
 
     const rawText = groqData.choices[0].message.content;
-    const match = rawText.match(/\{[^}]*?\}/);
+    const match = (() => { const s = rawText.indexOf('{'); const e = rawText.lastIndexOf('}'); return (s !== -1 && e > s) ? [rawText.slice(s, e + 1)] : null; })();
     if (!match) return res.status(200).json({ suspicion_score: 30, flag: "none", note: "Could not parse response." });
 
     const result = JSON.parse(match[0]);
