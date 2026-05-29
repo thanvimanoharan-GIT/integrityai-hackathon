@@ -1000,6 +1000,10 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           // (looking around, adjusting camera) inflates gaze before any question is asked
           const warmupElapsed = Date.now() - recordingStartTsRef.current;
           const effectiveGaze = warmupElapsed < 30000 ? 0 : snapGaze;
+          // Update interviewer screen counters from cross-machine signal API
+          if (snapGaze > 0) setGazeDeviations(snapGaze);
+          if (typeof data.tab_switch_count === 'number' && data.tab_switch_count > 0) setCandidateTabSwitches(data.tab_switch_count);
+          if (typeof data.gaze_count === 'number' && data.gaze_count > 0) setGazeDeviations(data.gaze_count);
 
           if (gap && gap.split(' ').length >= 10) { // min 10 words — filters pre-interview chit-chat
             // Flush any in-progress interviewer interim before inserting candidate block
@@ -2263,7 +2267,11 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
           <div style={{background: gazeStatus==='AWAY'?'rgba(239,68,68,.15)':gazeStatus==='OK'?'rgba(16,185,129,.1)':'rgba(100,116,139,.1)',
             border:`1px solid ${gazeStatus==='AWAY'?'rgba(239,68,68,.4)':gazeStatus==='OK'?'rgba(16,185,129,.3)':'rgba(100,116,139,.3)'}`,
             borderRadius:6,padding:'4px 10px',fontSize:11,color:gazeStatus==='AWAY'?'#f87171':gazeStatus==='OK'?'#34d399':'#94a3b8',fontWeight:700}}>
-            {gazeStatus==='CALIBRATING'?'⏳ CALIBRATING GAZE...':gazeStatus==='OK'?'👁 GAZE OK':gazeStatus==='UNAVAILABLE'?'👁 GAZE N/A':`👁 GAZE AWAY (${gazeCount}x)`}
+            {gazeStatus==='CALIBRATING'?'⏳ CALIBRATING GAZE...'
+              :gazeStatus==='UNAVAILABLE'?'👁 GAZE N/A'
+              :gazeStatus==='AWAY'?`👁 GAZE AWAY (${gazeCount}x)`
+              :gazeCount > 0 ? `👁 GAZE OK · ${gazeCount} away logged`
+              :'👁 GAZE OK'}
           </div>
           {tabCount > 0 && (
             <div style={{background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.4)',borderRadius:6,padding:'4px 10px',fontSize:11,color:'#f87171',fontWeight:700}}>

@@ -10,7 +10,8 @@
  *   { type:'transcript_snapshot', text, gaze_count, longest_silence_ms }
  *
  * GET response includes:
- *   transcript_snapshot, snapshot_gaze, snapshot_silence_ms
+ *   transcript_snapshot, snapshot_gaze, snapshot_silence_ms,
+ *   tab_switch_count, gaze_count
  *   (used by Mac A to call scoreTurn with full behavioral context)
  */
 
@@ -22,8 +23,10 @@ function getOrCreate(session) {
       transcript_chunks:   [],
       transcript_snapshot: '',
       snapshot_ts:         0,
-      snapshot_gaze:       0,    // gaze_count from Mac B at time of last snapshot
-      snapshot_silence_ms: null, // longest_silence_ms from Mac B at time of last snapshot
+      snapshot_gaze:       0,
+      snapshot_silence_ms: null,
+      tab_switch_count:    0,
+      gaze_count:          0,
     });
     setTimeout(() => sessions.delete(session), 6 * 60 * 60 * 1000);
   }
@@ -49,12 +52,17 @@ module.exports = async (req, res) => {
       s.snapshot_ts         = Date.now();
       s.snapshot_gaze       = typeof gaze_count       === 'number' ? gaze_count       : 0;
       s.snapshot_silence_ms = typeof longest_silence_ms === 'number' ? longest_silence_ms : null;
-      // Piggyback consent from snapshot — ensures same instance stores both (cross-machine reliability)
       if (req.body.consent_given) s.consent_given = true;
 
     } else if (type === 'transcript_chunk' && text && text.trim()) {
       s.transcript_chunks.push({ text: text.trim(), ts: Date.now() });
       if (s.transcript_chunks.length > 500) s.transcript_chunks.shift();
+
+    } else if (type === 'tab_switch' || type === 'window_blur') {
+      s.tab_switch_count = (s.tab_switch_count || 0) + 1;
+
+    } else if (type === 'gaze_deviation') {
+      s.gaze_count = (s.gaze_count || 0) + 1;
 
     } else if (type) {
       s[type] = true;
@@ -75,6 +83,8 @@ module.exports = async (req, res) => {
       snapshot_ts,
       snapshot_gaze,
       snapshot_silence_ms,
+      tab_switch_count,
+      gaze_count,
       ...flags
     } = s;
 
@@ -86,6 +96,8 @@ module.exports = async (req, res) => {
       snapshot_ts:         snapshot_ts         || 0,
       snapshot_gaze:       snapshot_gaze       || 0,
       snapshot_silence_ms: snapshot_silence_ms ?? null,
+      tab_switch_count:    tab_switch_count    || 0,
+      gaze_count:          gaze_count          || 0,
     });
   }
 

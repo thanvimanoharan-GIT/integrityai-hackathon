@@ -67,9 +67,6 @@ RESUME TO ANALYSE:
 
 // Recalculate average_tenure_months from actual year ranges in resume text.
 // LLMs frequently get date math wrong (e.g. 4 years → returns 12 months).
-// This reads "YYYY – YYYY" / "YYYY - Present" patterns and corrects the value.
-// Recalculate average_tenure_months from actual year ranges in resume text.
-// LLMs frequently get date math wrong (e.g. 4 years → returns 12 months).
 // Handles: "Dec 2021 – till date", "2020 - 2024", "Jan 2019 – Mar 2022" etc.
 function correctTenure(career, resumeText) {
   if (!career || !resumeText) return career;
@@ -80,15 +77,12 @@ function correctTenure(career, resumeText) {
   const MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
   const PRESENT = /^(present|current|now|till\s*date|today|date)$/i;
 
-  // Parse "Dec 2021" or "2021" → { year, month }
   function parseDate(monStr, yearStr) {
     const y = parseInt(yearStr);
     const mo = monStr ? (MONTHS[monStr.toLowerCase().slice(0,3)] || 1) : null;
     return { year: y, month: mo };
   }
 
-  // Match patterns like:
-  //   "Dec 2021 – till date"  "Jan 2019 – Mar 2022"  "2020 – 2024"  "2018 - Present"
   const re = /(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?((?:19|20)\d{2})\s*[-–—to]+\s*(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?((?:19|20)\d{2}|present|current|now|till\s*date|today|date)/gi;
 
   const spans = [];
@@ -115,8 +109,6 @@ function correctTenure(career, resumeText) {
 
   const companies = Math.max(1, career.total_companies || 1);
 
-  // 1 company → use the longest single span (their total tenure)
-  // Multiple → sum top N spans / N
   let recalcAvg;
   if (companies === 1) {
     recalcAvg = Math.max(...spans);
@@ -126,7 +118,6 @@ function correctTenure(career, resumeText) {
     recalcAvg = Math.round(topN.reduce((s, v) => s + v, 0) / companies);
   }
 
-  // Correct only if AI value is significantly lower than our calculation
   if (recalcAvg > 0 && career.average_tenure_months < recalcAvg * 0.6) {
     career.average_tenure_months = recalcAvg;
     if (recalcAvg >= 18) career.job_hopping_risk = 'low';
@@ -137,17 +128,14 @@ function correctTenure(career, resumeText) {
 }
 
 module.exports = async (req, res) => {
-  // CORS headers — allow any origin
   res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "https://integrityai-hackathon.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // ── Diagnostic: GET /api/generate-questions ──────────────────────────────
   if (req.method === "GET") {
     const apiKey = process.env.GROQ_API_KEY || "";
     let groqTest = {};
@@ -176,7 +164,6 @@ module.exports = async (req, res) => {
       return res.status(400).json({ detail: "Resume text is too short. Please upload a proper PDF." });
     }
 
-    // Guard against non-resume content
     const lower = resume_text.toLowerCase();
     const resumeSignals = [
       'experience','education','skill','work','job','university','college',
@@ -224,8 +211,6 @@ module.exports = async (req, res) => {
 
     const result = JSON.parse(match[0]);
 
-    // Normaliser: force category='trap' on any question with non-null trap_type
-    // Guards against model returning trap questions tagged as 'technical', breaking the Traps tab
     if (Array.isArray(result.questions)) {
       result.questions = result.questions.map(q => {
         if (q.trap_type && q.trap_type !== 'null' && q.trap_type !== null) {
@@ -235,8 +220,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Career analysis tenure correction — LLMs are unreliable at date math.
-    // Re-extract year ranges from the actual resume text and recalculate ourselves.
     if (result.career_analysis) {
       result.career_analysis = correctTenure(result.career_analysis, resume_text);
     }
