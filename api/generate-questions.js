@@ -55,7 +55,12 @@ Respond ONLY with valid JSON, no markdown, no code fences, no explanation outsid
   }
 }
 trap_type values: fake_tool | contradiction | simplicity | specificity | achievement_depth | null
-career_analysis: calculate from employment dates in resume. job_hopping_risk = high if avg tenure < 12mo, medium if < 18mo, low otherwise.
+career_analysis RULES — follow exactly:
+- average_tenure_months = total employed months across ALL jobs / number of jobs. Example: 1 job for 4 years = 48 months average. 2 jobs of 2 years each = 24 months average.
+- Count each employer as ONE job regardless of role changes or promotions within the same company.
+- If only years given (e.g. "4 years"), multiply by 12. If start/end dates given, calculate month difference precisely.
+- job_hopping_risk: high if avg tenure < 12mo, medium if 12-18mo, low if > 18mo.
+- total_companies: count distinct employers only, not roles.
 
 RESUME TO ANALYSE:
 `;
