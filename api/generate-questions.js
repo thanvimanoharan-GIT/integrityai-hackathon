@@ -68,19 +68,46 @@ RESUME TO ANALYSE:
 // Recalculate average_tenure_months from actual year ranges in resume text.
 // LLMs frequently get date math wrong (e.g. 4 years → returns 12 months).
 // This reads "YYYY – YYYY" / "YYYY - Present" patterns and corrects the value.
+// Recalculate average_tenure_months from actual year ranges in resume text.
+// LLMs frequently get date math wrong (e.g. 4 years → returns 12 months).
+// Handles: "Dec 2021 – till date", "2020 - 2024", "Jan 2019 – Mar 2022" etc.
 function correctTenure(career, resumeText) {
   if (!career || !resumeText) return career;
-  const curYear = new Date().getFullYear();
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth() + 1;
 
-  // Match year ranges: "2020 - 2024", "2019 – Present", "2018 - Current" etc.
-  const re = /((?:19|20)\d{2})\s*[-–—]\s*((?:19|20)\d{2}|present|current|now|till\s*date|today)/gi;
+  const MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+  const PRESENT = /^(present|current|now|till\s*date|today|date)$/i;
+
+  // Parse "Dec 2021" or "2021" → { year, month }
+  function parseDate(monStr, yearStr) {
+    const y = parseInt(yearStr);
+    const mo = monStr ? (MONTHS[monStr.toLowerCase().slice(0,3)] || 1) : null;
+    return { year: y, month: mo };
+  }
+
+  // Match patterns like:
+  //   "Dec 2021 – till date"  "Jan 2019 – Mar 2022"  "2020 – 2024"  "2018 - Present"
+  const re = /(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?((?:19|20)\d{2})\s*[-–—to]+\s*(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?((?:19|20)\d{2}|present|current|now|till\s*date|today|date)/gi;
+
   const spans = [];
   let m;
   while ((m = re.exec(resumeText)) !== null) {
-    const y1 = parseInt(m[1]);
-    const y2 = /\d{4}/.test(m[2]) ? parseInt(m[2]) : curYear;
-    if (y1 >= 1990 && y2 >= y1 && y2 <= curYear + 1) {
-      const months = (y2 - y1) * 12;
+    const start = parseDate(m[1], m[2]);
+    const endRaw = m[4];
+    let endYear, endMonth;
+
+    if (PRESENT.test(endRaw.trim())) {
+      endYear = curYear; endMonth = curMonth;
+    } else {
+      const ep = parseDate(m[3], endRaw);
+      endYear = ep.year; endMonth = ep.month || 12;
+    }
+
+    if (start.year >= 1990 && endYear >= start.year && endYear <= curYear + 1) {
+      const startMonth = start.month || 1;
+      const months = (endYear - start.year) * 12 + (endMonth - startMonth);
       if (months > 0) spans.push(months);
     }
   }
@@ -88,8 +115,8 @@ function correctTenure(career, resumeText) {
 
   const companies = Math.max(1, career.total_companies || 1);
 
-  // 1 company → use the longest single span (their full tenure there)
-  // Multiple companies → sum top N spans / N to get average
+  // 1 company → use the longest single span (their total tenure)
+  // Multiple → sum top N spans / N
   let recalcAvg;
   if (companies === 1) {
     recalcAvg = Math.max(...spans);
@@ -99,10 +126,9 @@ function correctTenure(career, resumeText) {
     recalcAvg = Math.round(topN.reduce((s, v) => s + v, 0) / companies);
   }
 
-  // Only correct if the AI value is significantly lower than what we calculated
+  // Correct only if AI value is significantly lower than our calculation
   if (recalcAvg > 0 && career.average_tenure_months < recalcAvg * 0.6) {
     career.average_tenure_months = recalcAvg;
-    // Recalculate risk based on corrected value
     if (recalcAvg >= 18) career.job_hopping_risk = 'low';
     else if (recalcAvg >= 12) career.job_hopping_risk = 'medium';
     else career.job_hopping_risk = 'high';
