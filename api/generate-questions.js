@@ -65,6 +65,51 @@ career_analysis RULES — follow exactly:
 RESUME TO ANALYSE:
 `;
 
+// Recalculate average_tenure_months from actual year ranges in resume text.
+// LLMs frequently get date math wrong (e.g. 4 years → returns 12 months).
+// This reads "YYYY – YYYY" / "YYYY - Present" patterns and corrects the value.
+function correctTenure(career, resumeText) {
+  if (!career || !resumeText) return career;
+  const curYear = new Date().getFullYear();
+
+  // Match year ranges: "2020 - 2024", "2019 – Present", "2018 - Current" etc.
+  const re = /((?:19|20)\d{2})\s*[-–—]\s*((?:19|20)\d{2}|present|current|now|till\s*date|today)/gi;
+  const spans = [];
+  let m;
+  while ((m = re.exec(resumeText)) !== null) {
+    const y1 = parseInt(m[1]);
+    const y2 = /\d{4}/.test(m[2]) ? parseInt(m[2]) : curYear;
+    if (y1 >= 1990 && y2 >= y1 && y2 <= curYear + 1) {
+      const months = (y2 - y1) * 12;
+      if (months > 0) spans.push(months);
+    }
+  }
+  if (!spans.length) return career;
+
+  const companies = Math.max(1, career.total_companies || 1);
+
+  // 1 company → use the longest single span (their full tenure there)
+  // Multiple companies → sum top N spans / N to get average
+  let recalcAvg;
+  if (companies === 1) {
+    recalcAvg = Math.max(...spans);
+  } else {
+    spans.sort((a, b) => b - a);
+    const topN = spans.slice(0, companies);
+    recalcAvg = Math.round(topN.reduce((s, v) => s + v, 0) / companies);
+  }
+
+  // Only correct if the AI value is significantly lower than what we calculated
+  if (recalcAvg > 0 && career.average_tenure_months < recalcAvg * 0.6) {
+    career.average_tenure_months = recalcAvg;
+    // Recalculate risk based on corrected value
+    if (recalcAvg >= 18) career.job_hopping_risk = 'low';
+    else if (recalcAvg >= 12) career.job_hopping_risk = 'medium';
+    else career.job_hopping_risk = 'high';
+  }
+  return career;
+}
+
 module.exports = async (req, res) => {
   // CORS headers — allow any origin
   res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "https://integrityai-hackathon.vercel.app");
@@ -162,6 +207,12 @@ module.exports = async (req, res) => {
         }
         return q;
       });
+    }
+
+    // Career analysis tenure correction — LLMs are unreliable at date math.
+    // Re-extract year ranges from the actual resume text and recalculate ourselves.
+    if (result.career_analysis) {
+      result.career_analysis = correctTenure(result.career_analysis, resume_text);
     }
 
     return res.status(200).json(result);
