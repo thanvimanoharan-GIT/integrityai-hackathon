@@ -1074,11 +1074,11 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
                           setTrapBannerVisible(true);
                           setRightTab('questions');
                         }
-                      });
+                      }).catch(() => { setIsGeneratingTrap(false); });
                   }
                 }
               }
-            });
+            }).catch(() => { setIsScoring(false); });
           }
         }
       } catch {}
@@ -1270,7 +1270,7 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
               }
             }
           }
-        });
+        }).catch(() => { setIsScoring(false); });
       }
     }
 
