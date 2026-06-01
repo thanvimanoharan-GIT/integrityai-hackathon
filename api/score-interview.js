@@ -249,6 +249,41 @@ ${interviewer_notes || 'None'}
     if (!match) return res.status(500).json({ detail: "Unexpected AI response format." });
 
     const report = JSON.parse(match[0]);
+
+    // Hard server-side score cap based on behavioral signals
+    // LLM tends to be too lenient with behavioral signals - enforce hard caps here.
+    const tabCount  = parseInt(tab_switches  || 0, 10);
+    const gazeCount = parseInt(gaze_deviations || 0, 10);
+
+    let scoreCap = 100;
+    if (tabCount >= 5)       scoreCap = Math.min(scoreCap, 35);
+    else if (tabCount >= 3)  scoreCap = Math.min(scoreCap, 55);
+    else if (tabCount >= 1)  scoreCap = Math.min(scoreCap, 75);
+    if (gazeCount >= 10)     scoreCap = Math.min(scoreCap, 50);
+    else if (gazeCount >= 5) scoreCap = Math.min(scoreCap, 65);
+
+    if (report.integrity_score > scoreCap) {
+      report.integrity_score = scoreCap;
+      if (scoreCap <= 39) {
+        report.risk_level     = 'high';
+        report.recommendation = 'do-not-proceed';
+      } else if (scoreCap <= 59) {
+        report.risk_level     = 'medium';
+        report.recommendation = 're-interview';
+      } else {
+        report.risk_level = report.risk_level === 'low' ? 'medium' : report.risk_level;
+      }
+      const hasTabFlag = (report.flags || []).some(f => f.type === 'tab_switch');
+      if (!hasTabFlag && tabCount > 0) {
+        report.flags = report.flags || [];
+        report.flags.push({
+          type: 'tab_switch',
+          severity: tabCount >= 3 ? 'high' : 'medium',
+          detail: 'Candidate switched tabs/windows ' + tabCount + ' time(s) during the interview - consistent with looking up answers externally.'
+        });
+      }
+    }
+
     return res.status(200).json(report);
 
   } catch (err) {

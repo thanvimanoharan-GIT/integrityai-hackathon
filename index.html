@@ -1001,9 +1001,10 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           const warmupElapsed = Date.now() - recordingStartTsRef.current;
           const effectiveGaze = warmupElapsed < 30000 ? 0 : snapGaze;
           // Update interviewer screen counters from cross-machine signal API
-          if (snapGaze > 0) setGazeDeviations(snapGaze);
-          if (typeof data.tab_switch_count === 'number' && data.tab_switch_count > 0) setCandidateTabSwitches(data.tab_switch_count);
-          if (typeof data.gaze_count === 'number' && data.gaze_count > 0) setGazeDeviations(data.gaze_count);
+          // Use Math.max to never overwrite a higher local value with a stale serverless value
+          if (typeof data.tab_switch_count === 'number') setCandidateTabSwitches(prev => Math.max(prev, data.tab_switch_count));
+          if (typeof data.gaze_count === 'number') setGazeDeviations(prev => Math.max(prev, data.gaze_count));
+          if (snapGaze > 0) setGazeDeviations(prev => Math.max(prev, snapGaze));
 
           if (gap && gap.split(' ').length >= 10) { // min 10 words — filters pre-interview chit-chat
             // Flush any in-progress interviewer interim before inserting candidate block
@@ -2023,7 +2024,11 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
 
   // ── Tab switch + window blur detection ───────────────────────────────────────
   React.useEffect(() => {
+    let lastSwitchTs = 0; // debounce: visibilitychange + blur both fire for same action
     const reportSwitch = () => {
+      const now = Date.now();
+      if (now - lastSwitchTs < 600) return; // deduplicate double-fire within 600ms
+      lastSwitchTs = now;
       const next = tabCountRef.current + 1;
       setTabCount(next); tabCountRef.current = next;
       if (bcRef) bcRef.postMessage({ type: 'tab_switch', count: next, session: sessionId });
@@ -2299,9 +2304,11 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
             </a>
           )}
           {gazeStatus === 'UNAVAILABLE' && (
-            <div style={{background:'rgba(234,179,8,.1)',border:'1px solid rgba(234,179,8,.3)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#fbbf24',lineHeight:1.6,marginTop:8}}>
-              ⚠️ <strong>Camera unavailable</strong> — another app (Teams/Webex) may be using it.<br/>
-              Gaze tracking is paused. Tab switches and transcript are still being captured.
+            <div style={{background:'rgba(234,179,8,.1)',border:'1px solid rgba(234,179,8,.3)',borderRadius:8,padding:'12px 14px',fontSize:12,color:'#fbbf24',lineHeight:1.8,marginTop:8}}>
+              ⚠️ <strong>Camera unavailable — gaze tracking inactive</strong><br/>
+              Your camera is in use by another app (Teams / Webex browser tab).<br/>
+              <strong>Fix:</strong> Use the <strong>Teams / Webex desktop app</strong> instead of the browser — this frees the camera for gaze tracking.<br/>
+              <span style={{color:'#94a3b8'}}>Tab switches and transcript are still being captured normally.</span>
             </div>
           )}
           <div style={{marginTop:20,fontSize:11,color:'#475569',lineHeight:1.6}}>
