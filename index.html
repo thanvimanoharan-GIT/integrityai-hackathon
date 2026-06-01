@@ -2016,7 +2016,8 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
   const baselineRef    = React.useRef(null);   // {x, y} iris centre baseline
   const baselineFrames = React.useRef(0);
   const lastGazeReport = React.useRef(0);
-  const cameraRef      = React.useRef(null);
+  const cameraRef       = React.useRef(null);
+  const screenShareFnRef = React.useRef(null); // holds startWithStream fn for screen-share button
   const candRecRef    = React.useRef(null);  // Speech recognition on candidate device
   const candActiveRef = React.useRef(false); // controls restart loop
 
@@ -2108,16 +2109,33 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
         }
       });
 
+      // Helper: attach any stream (camera OR screen) to video and start MediaPipe loop
+      const startWithStream = (stream) => {
+        video.srcObject = stream;
+        video.play().catch(() => {});
+        setGazeStatus('CALIBRATING');
+        baselineRef.current = null;
+        baselineFrames.current = 0;
+        cameraRef.current = { stop: () => stream.getTracks().forEach(t => t.stop()) };
+        const loop = async () => {
+          if (stopped) return;
+          if (video.readyState >= 2) {
+            await faceMesh.send({ image: video }).catch(() => {});
+          }
+          if (!stopped) requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+      };
+      screenShareFnRef.current = startWithStream;
+
+      // Try 1: direct camera (works when Teams is not using it)
       try {
-        const cam = new Camera(video, {
-          onFrame: async () => { if (!stopped) await faceMesh.send({ image: video }); },
-          width: 320, height: 240,
-        });
-        cameraRef.current = cam;
-        cam.start();
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: false });
+        startWithStream(stream);
       } catch(e) {
-        console.warn('[IntegrityAI] Gaze tracking unavailable:', e.message); // NOSONAR intentional diagnostic log
-        setGazeStatus('UNAVAILABLE');
+        // Camera unavailable (Teams/Zoom holding it) — prompt screen share
+        console.warn('[IntegrityAI] Camera unavailable, prompting screen share:', e.message); // NOSONAR diagnostic
+        setGazeStatus('SCREEN_SHARE_PENDING');
       }
     };
 
@@ -2172,6 +2190,7 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
           text:                accumulated,
           gaze_count:          gazeCountRef.current,   // total gaze-away events since consent
           longest_silence_ms:  longestSilenceMs,        // longest gap in current unsent turn
+          tab_switch_count:    tabCountRef.current,     // cumulative tab switches — sent every snapshot for cross-machine reliability
           consent_given:       true,                    // piggyback consent on every snapshot (cross-machine reliability)
         })
       }).catch(() => {});
@@ -2303,11 +2322,27 @@ function CandidateMonitor({ sessionId, meetingUrl }) {
               📹 Open Video Call
             </a>
           )}
+          {gazeStatus === 'SCREEN_SHARE_PENDING' && (
+            <div style={{background:'rgba(99,102,241,.1)',border:'1px solid rgba(99,102,241,.4)',borderRadius:8,padding:'12px 14px',fontSize:12,color:'#a5b4fc',lineHeight:1.8,marginTop:8}}>
+              📷 <strong>Camera in use by Teams / Zoom</strong><br/>
+              Share your <strong>Teams window</strong> so IntegrityAI can track your gaze from the video preview.<br/>
+              <button
+                onClick={async () => {
+                  try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
+                    if (screenShareFnRef.current) screenShareFnRef.current(stream);
+                  } catch(e) { setGazeStatus('UNAVAILABLE'); }
+                }}
+                style={{marginTop:8,padding:'7px 16px',background:'linear-gradient(135deg,#6366f1,#a855f7)',color:'white',border:'none',borderRadius:6,fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                📺 Share Teams Window
+              </button>
+              <div style={{marginTop:6,color:'#64748b',fontSize:11}}>Click above, then select your Teams window when the browser asks.</div>
+            </div>
+          )}
           {gazeStatus === 'UNAVAILABLE' && (
             <div style={{background:'rgba(234,179,8,.1)',border:'1px solid rgba(234,179,8,.3)',borderRadius:8,padding:'12px 14px',fontSize:12,color:'#fbbf24',lineHeight:1.8,marginTop:8}}>
-              ⚠️ <strong>Camera unavailable — gaze tracking inactive</strong><br/>
-              Your camera is in use by another app (Teams / Webex browser tab).<br/>
-              <strong>Fix:</strong> Use the <strong>Teams / Webex desktop app</strong> instead of the browser — this frees the camera for gaze tracking.<br/>
+              ⚠️ <strong>Gaze tracking unavailable</strong><br/>
+              Screen share was declined or not supported.<br/>
               <span style={{color:'#94a3b8'}}>Tab switches and transcript are still being captured normally.</span>
             </div>
           )}

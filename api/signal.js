@@ -53,6 +53,11 @@ module.exports = async (req, res) => {
       s.snapshot_gaze       = typeof gaze_count       === 'number' ? gaze_count       : 0;
       s.snapshot_silence_ms = typeof longest_silence_ms === 'number' ? longest_silence_ms : null;
       if (req.body.consent_given) s.consent_given = true;
+      // Piggyback cumulative tab_switch_count on snapshot for cross-machine reliability
+      // Takes max so a stale instance never overwrites a higher value
+      if (typeof req.body.tab_switch_count === 'number') {
+        s.tab_switch_count = Math.max(s.tab_switch_count || 0, req.body.tab_switch_count);
+      }
 
     } else if (type === 'transcript_chunk' && text && text.trim()) {
       s.transcript_chunks.push({ text: text.trim(), ts: Date.now() });
