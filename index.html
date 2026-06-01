@@ -985,6 +985,16 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
         // so we only act on the NEW text in each snapshot.
         const snap    = data.transcript_snapshot || '';
         const snapTs  = data.snapshot_ts || 0;
+
+        // ── Behavioral counters update on EVERY poll — independent of transcript text ──
+        // Tab switch and gaze must not be gated on new text — silent cheating won't produce text
+        const snapGazeAll    = typeof data.snapshot_gaze    === 'number' ? data.snapshot_gaze    : 0;
+        const snapGazeCount  = typeof data.gaze_count       === 'number' ? data.gaze_count       : 0;
+        const warmupElapsed  = Date.now() - recordingStartTsRef.current;
+        if (typeof data.tab_switch_count === 'number') setCandidateTabSwitches(prev => Math.max(prev, data.tab_switch_count));
+        if (snapGazeAll > 0 && warmupElapsed >= 30000)  setGazeDeviations(prev => Math.max(prev, snapGazeAll));
+        if (snapGazeCount > 0 && warmupElapsed >= 30000) setGazeDeviations(prev => Math.max(prev, snapGazeCount));
+
         // Reject snapshots posted before this recording session started (stale Lambda data)
         if (snapTs > 0 && snapTs < recordingStartTsRef.current) {
           snapshotConsumedLenRef.current = snap.length; // advance cursor so stale text is skipped
@@ -992,19 +1002,10 @@ function InterviewScreen({ questions, candidateName, company, sessionId, resumeT
           const gap = snap.slice(snapshotConsumedLenRef.current).trim();
           snapshotConsumedLenRef.current = snap.length;
 
-          // Read behavioral signals sent by Mac B alongside snapshot
-          // These replace the null/0 placeholders and give scoreTurn full context
-          const snapGaze    = typeof data.snapshot_gaze       === 'number' ? data.snapshot_gaze       : 0;
+          // Read behavioral signals sent by Mac B alongside snapshot (for scoreTurn context)
+          const snapGaze    = snapGazeAll;
           const snapSilence = typeof data.snapshot_silence_ms === 'number' ? data.snapshot_silence_ms : null;
-          // Zero out gaze count for first 30s of recording — candidate setup activity
-          // (looking around, adjusting camera) inflates gaze before any question is asked
-          const warmupElapsed = Date.now() - recordingStartTsRef.current;
           const effectiveGaze = warmupElapsed < 30000 ? 0 : snapGaze;
-          // Update interviewer screen counters from cross-machine signal API
-          // Use Math.max to never overwrite a higher local value with a stale serverless value
-          if (typeof data.tab_switch_count === 'number') setCandidateTabSwitches(prev => Math.max(prev, data.tab_switch_count));
-          if (typeof data.gaze_count === 'number') setGazeDeviations(prev => Math.max(prev, data.gaze_count));
-          if (snapGaze > 0) setGazeDeviations(prev => Math.max(prev, snapGaze));
 
           if (gap && gap.split(' ').length >= 10) { // min 10 words — filters pre-interview chit-chat
             // Flush any in-progress interviewer interim before inserting candidate block
